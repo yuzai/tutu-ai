@@ -8,18 +8,19 @@ import { AgentInspector, AgentRoster } from "@/components/AgentPanel";
 import { Controls } from "@/components/Controls";
 import { requestDecisionFor, useSim } from "@/lib/simulation";
 import { getScenarioById } from "@/lib/scenarios";
-
-const BASE_TICK_MS = Number(process.env.NEXT_PUBLIC_TICK_INTERVAL_MS) || 2500;
+import { useConfig } from "@/lib/config";
 
 export default function SimPage() {
   const paused = useSim((s) => s.paused);
   const speed = useSim((s) => s.speed);
   const scenarioId = useSim((s) => s.scenarioId);
   const scenario = getScenarioById(scenarioId);
+  const baseTickMs = useConfig((s) => s.config.tickIntervalMs);
 
-  // 刷新或直接访问 /sim?scenario=xxx 时，从 URL 同步到 store。
+  // 刷新或直接访问 /sim?scenario=xxx 时，从 URL 同步到 store；同时从 localStorage 加载 LLM 配置。
   useEffect(() => {
     if (typeof window === "undefined") return;
+    useConfig.getState().hydrate();
     const params = new URLSearchParams(window.location.search);
     const urlScenario = params.get("scenario");
     if (urlScenario && urlScenario !== useSim.getState().scenarioId) {
@@ -29,7 +30,7 @@ export default function SimPage() {
 
   useEffect(() => {
     if (paused) return;
-    const interval = Math.max(120, Math.floor(BASE_TICK_MS / speed));
+    const interval = Math.max(120, Math.floor(baseTickMs / speed));
     const id = window.setInterval(() => {
       useSim.getState().tickOnce();
       const tick = useSim.getState().tick;
@@ -54,7 +55,7 @@ export default function SimPage() {
       }
     }, interval);
     return () => window.clearInterval(id);
-  }, [paused, speed]);
+  }, [paused, speed, baseTickMs]);
 
   return (
     <main className="max-w-[1500px] mx-auto p-4 space-y-3">

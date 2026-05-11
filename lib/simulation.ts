@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { stepToward, randomCellInPlace, stableCellInPlace } from "./world";
 import { getScenarioById, DEFAULT_SCENARIO_ID } from "./scenarios";
+import { useConfig } from "./config";
 import type { Scenario } from "./scenarios";
 import type {
   AgentDecision,
@@ -20,10 +21,10 @@ const NEAR_RADIUS = 5;
 const SPEECH_TTL_TICKS = 4;
 const MEMORY_CAP = 24;
 const RE_DECIDE_TICKS = 12;
-const MAX_CONCURRENT_DECISIONS =
-  Number(process.env.NEXT_PUBLIC_MAX_CONCURRENT) > 0
-    ? Number(process.env.NEXT_PUBLIC_MAX_CONCURRENT)
-    : 4;
+function currentMaxConcurrent(): number {
+  const v = useConfig.getState().config.maxConcurrent;
+  return Number.isFinite(v) && v > 0 ? v : 4;
+}
 const EVENT_LOG_CAP = 200;
 
 function clockFromTick(tick: number, scenario: Scenario): string {
@@ -317,7 +318,7 @@ export const useSim = create<SimState>((set, get) => ({
     const s = get();
     const scenario = getScenarioById(s.scenarioId);
     const out: AgentDiag[] = [];
-    let slotsLeft = MAX_CONCURRENT_DECISIONS - s.decisionsInFlight.size;
+    let slotsLeft = currentMaxConcurrent() - s.decisionsInFlight.size;
     for (const id of Object.keys(s.agents)) {
       const a = s.agents[id];
       const name = charById(scenario, id)?.name ?? id;
@@ -431,12 +432,14 @@ export async function requestDecisionFor(agentId: string): Promise<AgentDecision
   const s = useSim.getState();
   const scenarioId = s.scenarioId;
   const obs = s.buildObservation(agentId);
+  // 客户端配置（用户在 ⚙️ 设置里填的）。
+  const llmConfig = useConfig.getState().config;
   useSim.getState().markDecisionStart(agentId);
   try {
     const resp = await fetch("/api/agent/decide", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ agentId, scenarioId, observation: obs }),
+      body: JSON.stringify({ agentId, scenarioId, observation: obs, llmConfig }),
     });
     if (!resp.ok) {
       const txt = await resp.text();

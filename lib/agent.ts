@@ -1,6 +1,6 @@
 import type { AgentAction, AgentDecision, CharacterPersona, Observation } from "./types";
 import type { Scenario } from "./scenarios";
-import { callDecide, type RawDecision } from "./llm";
+import { callDecide, type RawDecision, type RuntimeLLMConfig } from "./llm";
 
 function relationshipsBlock(persona: CharacterPersona): string {
   const entries = Object.entries(persona.relationships);
@@ -148,10 +148,11 @@ export function normalizeDecision(raw: RawDecision, scenario: Scenario): AgentDe
 export async function decideForAgent(
   persona: CharacterPersona,
   observation: Observation,
-  scenario: Scenario
+  scenario: Scenario,
+  llmConfig?: RuntimeLLMConfig
 ): Promise<AgentDecision> {
   const sys = buildSystemPrompt(persona, scenario);
   const usr = buildUserPrompt(observation, scenario);
-  const raw = await callDecide(sys, usr, persona.name);
+  const raw = await callDecide(sys, usr, persona.name, llmConfig);
   return normalizeDecision(raw, scenario);
 }

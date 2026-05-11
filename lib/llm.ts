@@ -1,47 +1,31 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
-let cachedClient: OpenAI | null = null;
+// 客户端运行时传递的 LLM 配置（与 lib/config.ts 的 LLMConfig 字段对应）。
+export type RuntimeLLMConfig = {
+  baseURL?: string;
+  apiKey?: string;
+  model?: string;
+  maxTokens?: number;
+  jsonMode?: boolean;
+  disableThinking?: boolean;
+  reasoningEffort?: "high" | "max";
+  debug?: boolean;
+  verbose?: boolean;
+};
 
-export function getLLM(): OpenAI {
-  if (cachedClient) return cachedClient;
-  const baseURL = process.env.OPENAI_BASE_URL || "http://localhost:11434/v1";
-  const apiKey = process.env.OPENAI_API_KEY || "not-needed";
-  cachedClient = new OpenAI({ baseURL, apiKey });
-  return cachedClient;
+// DeepSeek V4 系列用 API 参数控制思考，不再吃 prompt 里的 /no_think。
+function isDeepSeekV4(model: string): boolean {
+  return /deepseek[-_/]v4/i.test(model);
 }
 
-export function getModel(): string {
-  return process.env.OPENAI_MODEL || "qwen2.5:7b-instruct";
-}
-
-export function getMaxTokens(): number {
-  const v = Number(process.env.TUTU_MAX_TOKENS);
-  return Number.isFinite(v) && v > 0 ? v : 800;
-}
-
-// Qwen3 / 类似支持 hybrid thinking 的模型默认会先吐 <think>...</think>。
-// 在 prompt 里追加 /no_think 可以让它跳过思考，直接出答案 — 速度快很多。
-// 设 TUTU_DISABLE_THINKING=0 可关掉这个行为（让模型继续思考）。
-function shouldDisableThinking(): boolean {
-  return process.env.TUTU_DISABLE_THINKING !== "0";
-}
-
-// Ollama 上 Qwen3 系列的 json_object 模式跟 thinking 冲突，常常产出空字符串。
-// 默认关闭；设 TUTU_JSON_MODE=1 强制开。
-function shouldUseJsonMode(): boolean {
-  return process.env.TUTU_JSON_MODE === "1";
-}
-
-// 默认开：每次 LLM 调用前后各一行摘要，看 agent 在做什么决定。
-function shouldDebugLLM(): boolean {
-  return process.env.TUTU_DEBUG_LLM !== "0";
-}
-
-// 设 TUTU_DEBUG_VERBOSE=1 才打完整的 prompt / raw response，调试 prompt 工程时用。
-function shouldDebugVerbose(): boolean {
-  return process.env.TUTU_DEBUG_VERBOSE === "1";
-}
+// 所有配置通过客户端请求 body 传入。服务端只在字段为空时用硬编码兜底。
+const FALLBACK = {
+  baseURL: "http://localhost:11434/v1",
+  apiKey: "not-needed",
+  model: "qwen2.5:3b-instruct",
+  maxTokens: 600,
+} as const;
 
 function stripThinkTags(text: string): string {
   return text.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/<think>[\s\S]*$/i, "").trim();
@@ -56,7 +40,6 @@ const ActionSchema = z.object({
   duration_seconds: z.number().nullable().optional(),
 });
 
-// 小模型偶尔漏 thought 字段，宽容处理：允许 thought / thinking / reason 任一，缺失则空串。
 const DecisionSchema = z
   .object({
     thought: z.string().optional(),
@@ -87,40 +70,72 @@ function divider(label: string): string {
   return `── ${label} ${bar}`;
 }
 
+// 客户端传配置则优先用客户端，否则 fallback 到硬编码默认。绝不打印 apiKey。
+function resolveConfig(cfg?: RuntimeLLMConfig) {
+  return {
+    baseURL: cfg?.baseURL?.trim() || FALLBACK.baseURL,
+    apiKey: cfg?.apiKey?.trim() || FALLBACK.apiKey,
+    model: cfg?.model?.trim() || FALLBACK.model,
+    maxTokens: cfg?.maxTokens && cfg.maxTokens > 0 ? cfg.maxTokens : FALLBACK.maxTokens,
+    disableThinking: cfg?.disableThinking ?? false,
+    jsonMode: cfg?.jsonMode ?? false,
+    reasoningEffort: cfg?.reasoningEffort,
+    debug: cfg?.debug ?? false,
+    verbose: cfg?.verbose ?? false,
+  };
+}
+
 export async function callDecide(
   systemPrompt: string,
   userPrompt: string,
-  label: string = "agent"
+  label: string = "agent",
+  cfg?: RuntimeLLMConfig
 ): Promise<RawDecision> {
-  const llm = getLLM();
-  const model = getModel();
-  const noThink = shouldDisableThinking();
-  const jsonMode = shouldUseJsonMode();
-  const debug = shouldDebugLLM();
-  const verbose = shouldDebugVerbose();
-  const finalUser = noThink ? `${userPrompt}\n\n/no_think` : userPrompt;
+  const resolved = resolveConfig(cfg);
+  const debug = resolved.debug;
+  const verbose = resolved.verbose;
+  const isV4 = isDeepSeekV4(resolved.model);
+  // V4 通过 API 参数控制思考，不要再追加 /no_think 字符串污染 prompt。
+  const finalUser = resolved.disableThinking && !isV4 ? `${userPrompt}\n\n/no_think` : userPrompt;
+
+  // 每次创建新 client（不缓存）—— config 可能因请求不同。OpenAI SDK 实例化很轻量。
+  const llm = new OpenAI({ baseURL: resolved.baseURL, apiKey: resolved.apiKey });
+
+  // DeepSeek V4 的特殊参数：thinking + reasoning_effort（OpenAI SDK 透传到 body）。
+  const v4Extras: Record<string, unknown> = {};
+  if (isV4) {
+    v4Extras.thinking = { type: resolved.disableThinking ? "disabled" : "enabled" };
+    if (!resolved.disableThinking) {
+      v4Extras.reasoning_effort = resolved.reasoningEffort ?? "high";
+    }
+  }
 
   if (verbose) {
-    console.log(divider(`LLM REQ · ${label} · model=${model} · no_think=${noThink} · json_mode=${jsonMode}`));
+    console.log(
+      divider(`LLM REQ · ${label} · model=${resolved.model} · no_think=${resolved.disableThinking} · json_mode=${resolved.jsonMode}${isV4 ? " · v4=true" : ""}`)
+    );
     console.log("[system]\n" + systemPrompt);
     console.log("[user]\n" + finalUser);
   } else if (debug) {
-    console.log(`→ ${label.padEnd(6)} 询问中…`);
+    console.log(`→ ${label.padEnd(6)} 询问中…  [${resolved.model}]`);
   }
 
   const startedAt = Date.now();
   let completion;
   try {
+    // 用 as any 允许透传非 SDK schema 字段（DeepSeek V4 的 thinking / reasoning_effort）。
     completion = await llm.chat.completions.create({
-      model,
+      model: resolved.model,
       temperature: 0.9,
-      max_tokens: getMaxTokens(),
-      ...(jsonMode ? { response_format: { type: "json_object" as const } } : {}),
+      max_tokens: resolved.maxTokens,
+      ...(resolved.jsonMode ? { response_format: { type: "json_object" as const } } : {}),
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: finalUser },
       ],
-    });
+      ...v4Extras,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`✗ ${label} ${Date.now() - startedAt}ms LLM ERR: ${msg}`);
@@ -143,7 +158,7 @@ export async function callDecide(
   const raw = stripThinkTags(rawRaw);
   if (!raw) {
     throw new Error(
-      `LLM returned empty content (finish=${finishReason}). 检查模型是否还在思考——把 TUTU_MAX_TOKENS 调大，或换 qwen2.5 非思考模型。raw="${rawRaw.slice(0, 300)}"`
+      `LLM returned empty content (finish=${finishReason}). 检查模型是否还在思考——把 max tokens 调大，或换非思考模型。raw="${rawRaw.slice(0, 300)}"`
     );
   }
   const jsonText = extractJSON(raw);
@@ -170,7 +185,9 @@ export async function callDecide(
     const ms = Date.now() - startedAt;
     const tok = usage ? ` ${usage.completion_tokens}t` : "";
     const thoughtPreview = result.data.thought ? ` · 想法："${result.data.thought.slice(0, 40)}"` : "";
-    console.log(`← ${label.padEnd(6)} ${ms}ms${tok} · ${a.type} ${target}${thoughtPreview}`);
+    // DeepSeek-R1 这类把思考放在 reasoning_content 的模型，debug 模式也露个摘要
+    const reasoningPreview = reasoning ? ` · 思考："${reasoning.replace(/\s+/g, " ").slice(0, 60)}…"` : "";
+    console.log(`← ${label.padEnd(6)} ${ms}ms${tok} · ${a.type} ${target}${thoughtPreview}${reasoningPreview}`);
   }
   return result.data;
 }

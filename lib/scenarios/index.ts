@@ -28,11 +28,7 @@ export function getScenarioById(id: string | undefined | null): Scenario {
   return SCENARIOS[id] ?? FALLBACK_SCENARIO;
 }
 
-export const DEFAULT_SCENARIO_ID: string = (() => {
-  const requested = (process.env.NEXT_PUBLIC_SCENARIO || "").trim();
-  if (requested && SCENARIOS[requested]) return requested;
-  return tutuScenario.id;
-})();
+export const DEFAULT_SCENARIO_ID: string = tutuScenario.id;
 
 // 静态默认场景（基于环境变量）。运行时切换请用 useSim 的 switchScenario。
 export const ACTIVE_SCENARIO: Scenario = getScenarioById(DEFAULT_SCENARIO_ID);

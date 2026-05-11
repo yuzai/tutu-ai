@@ -19,10 +19,22 @@ const ObservationSchema = z.object({
   pendingSpeechFrom: z.array(z.object({ from: z.string(), text: z.string() })),
 });
 
+const LLMConfigSchema = z
+  .object({
+    baseURL: z.string().optional(),
+    apiKey: z.string().optional(),
+    model: z.string().optional(),
+    maxTokens: z.number().optional(),
+    jsonMode: z.boolean().optional(),
+    disableThinking: z.boolean().optional(),
+  })
+  .optional();
+
 const RequestSchema = z.object({
   agentId: z.string(),
   scenarioId: z.string().optional(),
   observation: ObservationSchema,
+  llmConfig: LLMConfigSchema,
 });
 
 export async function POST(req: Request) {
@@ -45,10 +57,16 @@ export async function POST(req: Request) {
     );
   }
   try {
-    const decision = await decideForAgent(persona, parsed.data.observation, scenario);
+    const decision = await decideForAgent(
+      persona,
+      parsed.data.observation,
+      scenario,
+      parsed.data.llmConfig
+    );
     return NextResponse.json({ decision });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    // 不要在错误信息里包含 apiKey 或客户端传来的任何敏感字段
     console.error(`[decide] ${scenario.id}/${persona.name} failed:`, msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }

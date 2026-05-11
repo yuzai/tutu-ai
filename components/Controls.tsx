@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { clockOf, requestDecisionFor, useSim, type SimSpeed } from "@/lib/simulation";
+import { useConfig, maskKey } from "@/lib/config";
 import { ScenarioSelector } from "./ScenarioSelector";
+import { SettingsModal } from "./SettingsModal";
 
 const SPEEDS: SimSpeed[] = [0.25, 0.5, 1, 2, 4];
 
@@ -14,6 +17,8 @@ export function Controls() {
   const setPaused = useSim((s) => s.setPaused);
   const setSpeed = useSim((s) => s.setSpeed);
   const reset = useSim((s) => s.reset);
+  const cfg = useConfig((s) => s.config);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div className="panel p-3 flex flex-wrap items-center gap-3">
@@ -76,6 +81,14 @@ export function Controls() {
 
       <div className="ml-auto flex items-center gap-3">
         <ScenarioSelector />
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="flex items-center gap-1.5 text-[11px] text-stone-600 hover:text-stone-900 px-2 py-1 rounded border border-black/10 hover:bg-stone-50"
+          title={`Base URL: ${cfg.baseURL}\nModel: ${cfg.model}\nKey: ${maskKey(cfg.apiKey)}`}
+        >
+          <span>⚙️</span>
+          <span className="font-mono">{cfg.model}</span>
+        </button>
         <div className="flex items-center gap-2 text-[11px] text-stone-500">
           <span className={`inline-block w-2 h-2 rounded-full ${inflight > 0 ? "bg-amber-400 animate-pulse" : "bg-stone-300"}`} />
           LLM 决策中：{inflight}
@@ -87,6 +100,7 @@ export function Controls() {
           {lastError}
         </div>
       )}
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
