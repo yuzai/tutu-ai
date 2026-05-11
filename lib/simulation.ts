@@ -10,13 +10,13 @@ import type {
   WorldEvent,
 } from "./types";
 
-export type SimSpeed = 0.5 | 1 | 2 | 4;
+export type SimSpeed = 0.25 | 0.5 | 1 | 2 | 4;
 
 const NEAR_RADIUS = 5;
 const SPEECH_TTL_TICKS = 4;
 const MEMORY_CAP = 24;
 const RE_DECIDE_TICKS = 12;
-const MAX_CONCURRENT_DECISIONS = 2;
+const MAX_CONCURRENT_DECISIONS = 4;
 const EVENT_LOG_CAP = 200;
 const TICK_MINUTES = 5;
 const START_HOUR = 7;
@@ -60,6 +60,16 @@ function initialAgents(): Record<string, AgentRuntime> {
 
 type PendingHeard = { from: string; text: string };
 
+export type DecisionReason = "idle" | "stale" | "hasHeard";
+export type SkipReason =
+  | "决策中"
+  | "走路中"
+  | { kind: "busy"; remaining: number }
+  | "无触发";
+export type AgentDiag =
+  | { id: string; name: string; dispatch: true; reason: DecisionReason }
+  | { id: string; name: string; dispatch: false; skip: SkipReason };
+
 type SimState = {
   tick: number;
   paused: boolean;
@@ -79,7 +89,7 @@ type SimState = {
   markDecisionStart: (agentId: string) => void;
   markDecisionEnd: (agentId: string, error?: string) => void;
   reset: () => void;
-  needsDecision: () => string[];
+  diagnoseTick: () => AgentDiag[];
   buildObservation: (agentId: string) => Observation;
 };
 
@@ -262,19 +272,45 @@ export const useSim = create<SimState>((set, get) => ({
       return { agents, events, pendingHeard };
     }),
 
-  needsDecision: () => {
+  diagnoseTick: () => {
     const s = get();
-    const out: string[] = [];
-    if (s.decisionsInFlight.size >= MAX_CONCURRENT_DECISIONS) return out;
+    const out: AgentDiag[] = [];
+    let slotsLeft = MAX_CONCURRENT_DECISIONS - s.decisionsInFlight.size;
     for (const id of Object.keys(s.agents)) {
       const a = s.agents[id];
-      if (a.isDeciding) continue;
-      if (a.targetPos) continue;
+      const name = CHARACTER_BY_ID[id].name;
+      if (a.isDeciding) {
+        out.push({ id, name, dispatch: false, skip: "决策中" });
+        continue;
+      }
+      if (a.targetPos) {
+        out.push({ id, name, dispatch: false, skip: "走路中" });
+        continue;
+      }
       const idle = a.busyUntilTick <= s.tick;
       const stale = s.tick - a.lastDecisionTick >= RE_DECIDE_TICKS;
       const hasHeard = (s.pendingHeard[id]?.length ?? 0) > 0;
-      if (idle || stale || hasHeard) out.push(id);
-      if (out.length + s.decisionsInFlight.size >= MAX_CONCURRENT_DECISIONS) break;
+      const reason: DecisionReason | null = hasHeard
+        ? "hasHeard"
+        : idle
+        ? "idle"
+        : stale
+        ? "stale"
+        : null;
+      if (reason && slotsLeft > 0) {
+        out.push({ id, name, dispatch: true, reason });
+        slotsLeft -= 1;
+      } else if (reason && slotsLeft <= 0) {
+        out.push({ id, name, dispatch: false, skip: "决策中" });
+      } else {
+        const remaining = Math.max(0, a.busyUntilTick - s.tick);
+        out.push({
+          id,
+          name,
+          dispatch: false,
+          skip: remaining > 0 ? { kind: "busy", remaining } : "无触发",
+        });
+      }
     }
     return out;
   },

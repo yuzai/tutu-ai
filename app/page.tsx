@@ -7,7 +7,7 @@ import { AgentInspector, AgentRoster } from "@/components/AgentPanel";
 import { Controls } from "@/components/Controls";
 import { requestDecisionFor, useSim } from "@/lib/simulation";
 
-const BASE_TICK_MS = Number(process.env.NEXT_PUBLIC_TICK_INTERVAL_MS) || 1500;
+const BASE_TICK_MS = Number(process.env.NEXT_PUBLIC_TICK_INTERVAL_MS) || 2500;
 
 export default function HomePage() {
   const paused = useSim((s) => s.paused);
@@ -18,9 +18,25 @@ export default function HomePage() {
     const interval = Math.max(120, Math.floor(BASE_TICK_MS / speed));
     const id = window.setInterval(() => {
       useSim.getState().tickOnce();
-      const need = useSim.getState().needsDecision();
-      for (const aid of need) {
-        void requestDecisionFor(aid);
+      const tick = useSim.getState().tick;
+      const diag = useSim.getState().diagnoseTick();
+      const dispatched = diag.filter((d) => d.dispatch);
+      const skipped = diag.filter((d) => !d.dispatch);
+      const sentStr =
+        dispatched.length === 0
+          ? "—"
+          : dispatched.map((d) => `${d.name}(${d.dispatch ? d.reason : ""})`).join(", ");
+      const skipStr = skipped
+        .map((d) => {
+          const r = !d.dispatch ? d.skip : "";
+          const label =
+            typeof r === "string" ? r : `busy${(r as { remaining: number }).remaining}`;
+          return `${d.name}=${label}`;
+        })
+        .join(" ");
+      console.log(`%c[tick ${tick}] 派 ${sentStr} %c| 跳过 ${skipStr}`, "color:#0a7", "color:#999");
+      for (const d of dispatched) {
+        void requestDecisionFor(d.id);
       }
     }, interval);
     return () => window.clearInterval(id);

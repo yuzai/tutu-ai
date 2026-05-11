@@ -113,6 +113,6 @@ export async function decideForAgent(
 ): Promise<AgentDecision> {
   const sys = buildSystemPrompt(persona);
   const usr = buildUserPrompt(observation);
-  const raw = await callDecide(sys, usr);
+  const raw = await callDecide(sys, usr, persona.name);
   return normalizeDecision(raw);
 }

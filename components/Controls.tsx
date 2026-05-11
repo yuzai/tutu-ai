@@ -1,8 +1,8 @@
 "use client";
 
-import { clockOf, useSim, type SimSpeed } from "@/lib/simulation";
+import { clockOf, requestDecisionFor, useSim, type SimSpeed } from "@/lib/simulation";
 
-const SPEEDS: SimSpeed[] = [0.5, 1, 2, 4];
+const SPEEDS: SimSpeed[] = [0.25, 0.5, 1, 2, 4];
 
 export function Controls() {
   const paused = useSim((s) => s.paused);
@@ -33,6 +33,26 @@ export function Controls() {
             ⏸ 暂停
           </button>
         )}
+        <button
+          className="btn"
+          onClick={() => {
+            useSim.getState().tickOnce();
+            const tick = useSim.getState().tick;
+            const diag = useSim.getState().diagnoseTick();
+            const sent = diag.filter((d) => d.dispatch);
+            const sentStr =
+              sent.length === 0
+                ? "—"
+                : sent.map((d) => `${d.name}(${d.dispatch ? d.reason : ""})`).join(", ");
+            console.log(`%c[tick ${tick}] 派 ${sentStr}`, "color:#0a7");
+            for (const d of sent) {
+              void requestDecisionFor(d.id);
+            }
+          }}
+          title="单步推进一个 tick（暂停状态最有用）"
+        >
+          ⏭ 单步
+        </button>
         <button className="btn" onClick={() => reset()}>
           ↺ 重置
         </button>
