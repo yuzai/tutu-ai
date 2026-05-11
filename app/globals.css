@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% 8%, #fff6e0 0%, transparent 40%),
+    radial-gradient(circle at 88% 18%, #e0f0ff 0%, transparent 45%),
+    linear-gradient(180deg, #fffaf0 0%, #fff 100%);
+}
+
+@layer components {
+  .bubble {
+    @apply bg-white border border-black/10 rounded-2xl px-2 py-1 text-[11px] leading-tight shadow-bubble;
+  }
+  .pill {
+    @apply text-[11px] px-2 py-[2px] rounded-full bg-black/70 text-white;
+  }
+  .btn {
+    @apply px-3 py-1.5 rounded-md bg-white border border-black/10 text-sm hover:bg-black/5 active:translate-y-px;
+  }
+  .btn-primary {
+    @apply px-3 py-1.5 rounded-md bg-tutu-accent text-white text-sm shadow-sm hover:brightness-95 active:translate-y-px;
+  }
+  .panel {
+    @apply bg-white/85 backdrop-blur rounded-xl border border-black/10 shadow-sm;
+  }
+}
