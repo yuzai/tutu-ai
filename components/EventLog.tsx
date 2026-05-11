@@ -23,14 +23,13 @@ export function EventLog() {
         <h3 className="text-sm font-bold text-stone-700">事件日志</h3>
         <span className="text-[11px] text-stone-500">{events.length} 条</span>
       </div>
-      <div ref={ref} className="flex-1 overflow-y-auto pr-1 space-y-1 text-[12px] leading-snug">
+      <div ref={ref} className="flex-1 overflow-y-auto pr-1 space-y-1.5 text-[12px] leading-snug">
         {events.map((e, i) => (
-          <div key={i} className="flex gap-2">
-            <span className="text-stone-400 shrink-0 tabular-nums">{clockOf(e.tick)}</span>
-            <span className="shrink-0">{KIND_LABEL[e.kind] ?? "·"}</span>
-            <span className="text-stone-700">
-              <b className="font-semibold">{e.actor}</b> {e.text}
-            </span>
+          <div key={i} className="break-words">
+            <span className="text-stone-400 tabular-nums mr-1">{clockOf(e.tick)}</span>
+            <span className="mr-1">{KIND_LABEL[e.kind] ?? "·"}</span>
+            <b className="font-semibold text-stone-700">{e.actor}</b>{" "}
+            <span className="text-stone-700">{e.text}</span>
           </div>
         ))}
       </div>

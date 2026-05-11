@@ -12,10 +12,7 @@ body {
 }
 
 body {
-  background:
-    radial-gradient(circle at 12% 8%, #fff6e0 0%, transparent 40%),
-    radial-gradient(circle at 88% 18%, #e0f0ff 0%, transparent 45%),
-    linear-gradient(180deg, #fffaf0 0%, #fff 100%);
+  background: #f5f3ec;
 }
 
 @layer components {

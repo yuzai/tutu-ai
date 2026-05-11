@@ -61,7 +61,7 @@ export function AgentInspector() {
 
   if (!selectedId || !agent) {
     return (
-      <div className="panel p-3">
+      <div className="panel p-3 h-full">
         <h3 className="text-sm font-bold text-stone-700 mb-1">角色详情</h3>
         <p className="text-[12px] text-stone-500">点击地图上或名册里的角色查看 TA 的内心戏。</p>
       </div>
@@ -71,8 +71,8 @@ export function AgentInspector() {
   const placeName = placeAt(agent.pos)?.name ?? "街道上";
 
   return (
-    <div className="panel p-3">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="panel p-3 h-full flex flex-col overflow-hidden">
+      <div className="flex items-center gap-2 mb-2 shrink-0">
         <span
           className="inline-block w-8 h-8 rounded-full text-center leading-8 text-white text-lg"
           style={{ background: persona.color }}
@@ -87,7 +87,7 @@ export function AgentInspector() {
         </div>
       </div>
 
-      <div className="text-[12px] space-y-2">
+      <div className="text-[12px] space-y-2 overflow-y-auto pr-1 flex-1 min-h-0">
         <div>
           <div className="text-stone-500 text-[11px]">当前动作</div>
           <div>{actionLabel(agent)}</div>
