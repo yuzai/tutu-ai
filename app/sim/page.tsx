@@ -84,8 +84,8 @@ export default function SimPage() {
 
       <Controls />
 
-      <div className="grid grid-cols-12 gap-3 items-stretch">
-        <section className="col-span-12 xl:col-span-7">
+      <div className="grid grid-cols-12 gap-3 items-stretch xl:h-[calc(100vh-11rem)] xl:[grid-template-rows:minmax(0,1fr)]">
+        <section className="col-span-12 xl:col-span-7 min-h-0">
           <WorldView />
         </section>
         <aside className="col-span-12 sm:col-span-6 xl:col-span-3 flex flex-col gap-3 min-h-0">
@@ -94,10 +94,8 @@ export default function SimPage() {
             <AgentInspector />
           </div>
         </aside>
-        <section className="col-span-12 sm:col-span-6 xl:col-span-2 min-h-0 h-[420px] xl:h-auto xl:relative xl:overflow-hidden">
-          <div className="xl:absolute xl:inset-0 h-full">
-            <EventLog />
-          </div>
+        <section className="col-span-12 sm:col-span-6 xl:col-span-2 min-h-0 h-[420px] xl:h-auto">
+          <EventLog />
         </section>
       </div>
     </main>
