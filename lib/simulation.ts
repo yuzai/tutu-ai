@@ -20,7 +20,10 @@ const NEAR_RADIUS = 5;
 const SPEECH_TTL_TICKS = 4;
 const MEMORY_CAP = 24;
 const RE_DECIDE_TICKS = 12;
-const MAX_CONCURRENT_DECISIONS = 4;
+const MAX_CONCURRENT_DECISIONS =
+  Number(process.env.NEXT_PUBLIC_MAX_CONCURRENT) > 0
+    ? Number(process.env.NEXT_PUBLIC_MAX_CONCURRENT)
+    : 4;
 const EVENT_LOG_CAP = 200;
 
 function clockFromTick(tick: number, scenario: Scenario): string {
