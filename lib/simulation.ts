@@ -77,10 +77,13 @@ function makeInitialAgent(persona: CharacterPersona, scenario: Scenario): AgentR
     lastDecisionTick: -RE_DECIDE_TICKS,
     thought: "",
     speech: null,
+    thoughtBubble: null,
     memory: [],
     isDeciding: false,
   };
 }
+
+const THOUGHT_TTL_TICKS = 3;
 
 function initialAgentsFor(scenario: Scenario): Record<string, AgentRuntime> {
   return Object.fromEntries(
@@ -215,6 +218,9 @@ export const useSim = create<SimState>((set, get) => ({
         if (a.speech && a.speech.expiresTick <= nextTick) {
           a.speech = null;
         }
+        if (a.thoughtBubble && a.thoughtBubble.expiresTick <= nextTick) {
+          a.thoughtBubble = null;
+        }
 
         if (a.targetPos) {
           if (a.pos.x === a.targetPos.x && a.pos.y === a.targetPos.y) {
@@ -257,6 +263,11 @@ export const useSim = create<SimState>((set, get) => ({
       a.currentAction = decision.action;
       if (decision.thought.trim()) {
         addMemory(a, now, `（我想）${decision.thought}`);
+        a.thoughtBubble = {
+          text: decision.thought.slice(0, 80),
+          createdTick: now,
+          expiresTick: now + THOUGHT_TTL_TICKS,
+        };
       }
 
       const act = decision.action;

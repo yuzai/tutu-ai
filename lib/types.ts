@@ -57,6 +57,8 @@ export type AgentRuntime = {
   lastDecisionTick: number;
   thought: string;
   speech: { text: string; expiresTick: number } | null;
+  // 想法冒泡：决策刚回来时短暂显示在头顶，自动浮起并淡出。
+  thoughtBubble: { text: string; createdTick: number; expiresTick: number } | null;
   memory: MemoryEntry[];
   isDeciding: boolean;
 };

@@ -1,17 +1,27 @@
 # tutu-ai · 多智能体生成式仿真框架
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](tsconfig.json)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org)
+
 一个**轻量级中文友好的多智能体仿真框架**：在 2D 网格小镇上，每个 NPC 由 LLM 按自己的人设、记忆、关系网自主行动 — 走路、对话、做事、串门。
 
 灵感来源于 Stanford [Generative Agents (Smallville)](https://github.com/joonspk-research/generative_agents)，做了中文化和小模型适配。
 
 > **形态**：2D 网格 · **技术栈**：Next.js 14 + TypeScript · **模型**：任何 OpenAI 兼容协议（本地 Ollama / LM Studio / vLLM / 远端 OpenAI / DeepSeek / Moonshot…）
 
-## 自带两个场景
+## 自带 8 个场景
 
-| 场景 | 描述 | 角色 |
-|---|---|---|
-| 🏘️ **tutu**（默认）| 《大耳朵图图》翻斗大杂院 | 胡图图、胡英俊、张小丽、牛爷爷、壮壮、小美、小怪（猫） |
-| 🏢 **office** | 科技公司一天 | 王总、产品小李、工程师阿杰、设计师果果、实习生小陈、前台张姐 |
+| 场景 | 描述 | 角色数 |
+|---|---|:---:|
+| 🏘️ **tutu** | 《大耳朵图图》翻斗大杂院（致敬同人，见底部说明）| 7 |
+| 🏢 **office** | 科技公司一天（老板/PM/工程师/设计师/实习生/前台）| 6 |
+| 📚 **school** | 一年三班（班主任/班长/捣蛋鬼/学霸/体育委员/校长）| 6 |
+| 🛝 **playground** | 小区遛娃（妈妈/爷孙/八卦阿姨/独居老人）| 6 |
+| 🏋️ **gym** | 城市健身房（私教/吹牛大叔/网红/阿姨）| 6 |
+| 🎸 **festival** | 夏日音乐节（摇滚铁粉/网红/DJ/餐车）| 6 |
+| 🏯 **wuxia** | 江湖小镇（客栈/武馆/镖局/算命瞎子）| 6 |
+| 🏚️ **xianxia** | 青云宗（掌门/大师兄/二师姐/小师妹）| 6 |
 
 在 `.env.local` 切换：`NEXT_PUBLIC_SCENARIO=office`（改完要**重启** dev server）。
 
@@ -273,6 +283,10 @@ LLM 调用是 async fire-and-forget，所以 tick 心跳永远不被慢模型拖
 - 视觉是 SVG emoji，没像素小人。
 - 没有用户介入接口。后续可加"以路人身份说话"的输入框，把用户话作为 `pendingHeard` 注入。
 
-## 协议
+## 协议与免责声明
 
-仅供学习/玩耍用途。《大耳朵图图》角色与世界观版权归原作者所有。
+**代码协议**：[MIT License](LICENSE) — 自由使用、修改、分发、商用。
+
+**关于 tutu 场景**：项目内置的 `tutu` 场景是对央视动画《大耳朵图图》的**致敬性同人示例**（fan tribute），用于演示框架能力。所有角色（胡图图、胡英俊、张小丽、牛爷爷、壮壮、小美、小怪）及世界观版权归**央视动画 / 速达**等原作者所有。如果版权方有任何异议，请通过 issue 联系作者，我们会立即移除该示例场景。其余 7 个场景的角色均为原创。
+
+**免责**：本项目为个人学习作品，与上述版权方无任何关联或商业合作关系。
