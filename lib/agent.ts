@@ -47,12 +47,28 @@ ${persona.schedule}
 - 不要破坏人设：小孩说小孩的话，大人说大人的话。
 - 优先回应身边人对你说的话，但你可以选择回避、转身就走、敷衍——按人设来。
 - 想去某处用 go_to，想和身边某人说话用 say，想待着发呆用 wait，想做某件具体事用 do。
+- **say 的 target 必须是当前【周围的人】里列出的人**。想找不在身边的人？先 go_to 到他在的地方。
 - 不要瞬移：要去远处先用 go_to 一步步过去。`;
+}
+
+function timeOfDayHint(timeOfDay: string): string {
+  const m = timeOfDay.match(/(\d{2}):/);
+  if (!m) return "";
+  const h = parseInt(m[1], 10);
+  if (h >= 23 || h < 6) return "现在是深夜，正常人都在自己家里睡觉。如果你已经在家就别乱跑，没在家就赶紧回家。";
+  if (h < 8) return "清晨刚起床，准备吃早饭、洗漱、收拾出门。";
+  if (h < 12) return "上午时段，小孩在幼儿园上课，大人在工作或做家务。";
+  if (h < 14) return "中午饭点，大家在吃午饭。";
+  if (h < 17) return "下午时段，小孩在幼儿园，大人继续工作。";
+  if (h < 19) return "傍晚放学下班时间，正在回家或准备晚饭。";
+  if (h < 22) return "晚上在家休息、看电视、做家务。";
+  return "夜深了，该洗漱准备睡觉。";
 }
 
 export function buildUserPrompt(obs: Observation): string {
   const lines: string[] = [];
-  lines.push(`【现在】tick=${obs.tick}，${obs.timeOfDay}`);
+  const hint = timeOfDayHint(obs.timeOfDay);
+  lines.push(`【现在】tick=${obs.tick}，${obs.timeOfDay}${hint ? "（" + hint + "）" : ""}`);
   lines.push(`【你在哪】${obs.currentPlace}`);
   if (obs.nearby.length > 0) {
     lines.push(`【周围的人】`);

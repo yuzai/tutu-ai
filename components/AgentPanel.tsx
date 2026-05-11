@@ -92,10 +92,12 @@ export function AgentInspector() {
           <div className="text-stone-500 text-[11px]">当前动作</div>
           <div>{actionLabel(agent)}</div>
         </div>
-        <div>
-          <div className="text-stone-500 text-[11px]">最近一次想法</div>
-          <div className="italic text-stone-700">{agent.thought || "（还在发呆）"}</div>
-        </div>
+        {agent.thought?.trim() && (
+          <div>
+            <div className="text-stone-500 text-[11px]">最近一次想法</div>
+            <div className="italic text-stone-700">{agent.thought}</div>
+          </div>
+        )}
         <div>
           <div className="text-stone-500 text-[11px]">人设</div>
           <div className="text-stone-700 text-[11px] leading-snug">{persona.persona}</div>

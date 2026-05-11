@@ -218,9 +218,15 @@ export const useSim = create<SimState>((set, get) => ({
       a.intention = decision.thought;
       a.lastDecisionTick = now;
       a.currentAction = decision.action;
-      addMemory(a, now, `（我想）${decision.thought}`);
+      if (decision.thought.trim()) {
+        addMemory(a, now, `（我想）${decision.thought}`);
+      }
 
       const act = decision.action;
+      // 新决策若不是 go_to，先停下脚步（避免边说话/做事还在自动走路）。
+      if (act.type !== "go_to") {
+        a.targetPos = null;
+      }
       if (act.type === "go_to" && act.placeId) {
         const place = PLACE_BY_ID[act.placeId];
         if (place) {
@@ -244,12 +250,13 @@ export const useSim = create<SimState>((set, get) => ({
           });
           addMemory(a, now, `我${display}：「${utter}」`);
 
+          // 严格按距离传播：不在 NEAR_RADIUS 内的人听不见，即使被点名也一样。
+          // 想叫远处的人，模型应该先 go_to 过去。
           for (const otherId of Object.keys(agents)) {
             if (otherId === agentId) continue;
             const other = agents[otherId];
             const dist = Math.abs(other.pos.x - a.pos.x) + Math.abs(other.pos.y - a.pos.y);
-            const targeted = act.target === otherId || act.target === CHARACTER_BY_ID[otherId].name;
-            if (dist <= NEAR_RADIUS || targeted) {
+            if (dist <= NEAR_RADIUS) {
               const arr = pendingHeard[otherId] ? [...pendingHeard[otherId]] : [];
               arr.push({ from: persona.name, text: utter });
               pendingHeard[otherId] = arr.slice(-4);
@@ -284,13 +291,14 @@ export const useSim = create<SimState>((set, get) => ({
         out.push({ id, name, dispatch: false, skip: "决策中" });
         continue;
       }
-      if (a.targetPos) {
+      const hasHeard = (s.pendingHeard[id]?.length ?? 0) > 0;
+      // 走路中默认跳过；但被人喊话（hasHeard）优先级最高，能打断脚步。
+      if (a.targetPos && !hasHeard) {
         out.push({ id, name, dispatch: false, skip: "走路中" });
         continue;
       }
       const idle = a.busyUntilTick <= s.tick;
       const stale = s.tick - a.lastDecisionTick >= RE_DECIDE_TICKS;
-      const hasHeard = (s.pendingHeard[id]?.length ?? 0) > 0;
       const reason: DecisionReason | null = hasHeard
         ? "hasHeard"
         : idle
