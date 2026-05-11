@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { CHARACTERS, CHARACTER_BY_ID } from "./characters";
-import { PLACE_BY_ID, placeAt, stepToward, randomCellInPlace } from "./world";
+import { PLACE_BY_ID, placeAt, stepToward, randomCellInPlace, stableCellInPlace } from "./world";
 import type {
   AgentDecision,
   AgentRuntime,
@@ -38,7 +38,8 @@ function placeName(pos: { x: number; y: number }): string {
 
 function makeInitialAgent(persona: (typeof CHARACTERS)[number]): AgentRuntime {
   const home = PLACE_BY_ID[persona.homeId];
-  const pos = home ? randomCellInPlace(home) : { x: 0, y: 0 };
+  // 用 id 哈希确定首次位置 — 服务端/客户端一致，避免 hydration mismatch。
+  const pos = home ? stableCellInPlace(home, persona.id) : { x: 0, y: 0 };
   return {
     id: persona.id,
     pos,

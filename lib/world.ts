@@ -116,3 +116,17 @@ export function randomCellInPlace(p: Place): Position {
   const y = p.rect.y + Math.floor(Math.random() * p.rect.h);
   return { x, y };
 }
+
+// 用于首次 SSR — 避免 hydration mismatch；位置由 seed 决定，服务端/客户端一致。
+export function stableCellInPlace(p: Place, seed: string): Position {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const u = h >>> 0;
+  return {
+    x: p.rect.x + (u % p.rect.w),
+    y: p.rect.y + (Math.floor(u / p.rect.w) % p.rect.h),
+  };
+}
