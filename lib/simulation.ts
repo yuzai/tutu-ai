@@ -308,6 +308,10 @@ export const useSim = create<SimState>((set, get) => ({
         a.busyUntilTick = now + (act.durationTicks ?? 4);
       } else if (act.type === "wait") {
         a.busyUntilTick = now + (act.durationTicks ?? 3);
+      } else if (act.type === "sleep") {
+        pushEvent(events, { tick: now, kind: "thought", actor: persona.name, text: "睡着了 💤" });
+        addMemory(a, now, "我睡了一觉");
+        a.busyUntilTick = now + (act.durationTicks ?? 96);
       }
 
       agents[agentId] = a;

@@ -27,6 +27,7 @@ function actionLabel(a: ReturnType<typeof useSim.getState>["agents"][string]): s
   if (act.type === "do") return `🎈 ${act.activity ?? "在做事"}`;
   if (act.type === "wait") return "⏳ 等一会儿";
   if (act.type === "go_to") return "🚶 出发";
+  if (act.type === "sleep") return "💤 睡觉";
   return "·";
 }
 

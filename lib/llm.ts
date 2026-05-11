@@ -32,7 +32,7 @@ function stripThinkTags(text: string): string {
 }
 
 const ActionSchema = z.object({
-  type: z.enum(["go_to", "say", "wait", "do"]),
+  type: z.enum(["go_to", "say", "wait", "do", "sleep"]),
   place: z.string().nullable().optional(),
   target: z.string().nullable().optional(),
   utterance: z.string().nullable().optional(),

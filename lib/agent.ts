@@ -32,7 +32,7 @@ ${scenario.description}
 {
   "thought": "（你内心独白，1-2 句，用你的口吻）",
   "action": {
-    "type": "go_to" | "say" | "wait" | "do",
+    "type": "go_to" | "say" | "wait" | "do" | "sleep",
     "place": "地点名（仅 go_to 时）",
     "target": "对话对象姓名（仅 say 时；广播写 'everyone'）",
     "utterance": "你说的话（仅 say 时；用你的口吻，简短）",
@@ -46,6 +46,7 @@ ${scenario.description}
 - 不要破坏人设。
 - 优先回应身边人对你说的话，但你可以选择回避、转身就走、敷衍——按人设来。
 - 想去某处用 go_to，想和身边某人说话用 say，想待着发呆用 wait，想做某件具体事用 do。
+- **困了、累了、深夜、按作息该休息时用 sleep**。sleep 会让你休息较长一段时间（默认 8 小时），原地睡。
 - **say 的 target 必须是当前【周围的人】里列出的人**。想找不在身边的人？先 go_to 到他在的地方。
 - 不要瞬移：要去远处先用 go_to 一步步过去。`;
 }
@@ -64,27 +65,15 @@ function lookupCustomHint(hints: Record<string, string>, h: number): string | nu
   return null;
 }
 
-function defaultHint(h: number): string {
-  if (h >= 23 || h < 6) return "深夜，绝大多数人应该在家睡觉。";
-  if (h < 8) return "清晨刚起床，准备吃早饭、洗漱出门。";
-  if (h < 12) return "上午时段，多数人在工作或上学。";
-  if (h < 14) return "中午饭点，吃午饭的时段。";
-  if (h < 17) return "下午时段，多数人在工作。";
-  if (h < 19) return "傍晚下班放学时间，回家或准备晚饭。";
-  if (h < 22) return "晚上，下班放学回家，吃饭、休闲。";
-  return "夜深了，准备洗漱睡觉。";
-}
-
+// 只用 scenario 自定义的时段提示（如音乐节 14-22 黄金时段、修仙宗按子时寅时分段）。
+// 通用场景没有 hint 时返回空，让模型按时间字符串自己理解。
 function timeOfDayHint(timeOfDay: string, scenario: Scenario): string {
+  const custom = scenario.world.timeOfDayHints;
+  if (!custom) return "";
   const m = timeOfDay.match(/(\d{2}):/);
   if (!m) return "";
   const h = parseInt(m[1], 10);
-  const custom = scenario.world.timeOfDayHints;
-  if (custom) {
-    const hit = lookupCustomHint(custom, h);
-    if (hit) return hit;
-  }
-  return defaultHint(h);
+  return lookupCustomHint(custom, h) ?? "";
 }
 
 export function buildUserPrompt(obs: Observation, scenario: Scenario): string {
@@ -141,6 +130,11 @@ export function normalizeDecision(raw: RawDecision, scenario: Scenario): AgentDe
   }
   if (raw.action.type === "wait") {
     if (!action.durationTicks) action.durationTicks = 4;
+  }
+  if (raw.action.type === "sleep") {
+    // 8 sim 小时 = 96 ticks (5 sim min/tick)。睡眠固定时长，忽略模型给的 duration。
+    action.durationTicks = 96;
+    action.activity = "睡觉";
   }
   return { thought: raw.thought, action };
 }

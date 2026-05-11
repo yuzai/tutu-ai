@@ -110,6 +110,13 @@ export function SettingsModal({ open, onClose }: Props) {
             </div>
           </div>
 
+          {/* 本地模型遵从度提醒 */}
+          {/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(draft.baseURL) && (
+            <div className="text-[11px] leading-relaxed text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-2">
+              💡 <b>本地小模型遵从度有限</b>。3B-7B 的模型可能：JSON 格式不严谨、漏字段、把不在身边的人喊作 target、忽略时间提示不睡觉、动作选错。**适合本地体验/调试**；想看流畅的角色互动建议用 DeepSeek 等远端 API。
+            </div>
+          )}
+
           {/* baseURL */}
           <Field label="Base URL" hint="OpenAI 兼容端点，结尾通常带 /v1">
             <input

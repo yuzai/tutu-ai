@@ -25,7 +25,7 @@ export type CharacterPersona = {
   schedule: string;
 };
 
-export type ActionType = "go_to" | "say" | "wait" | "do";
+export type ActionType = "go_to" | "say" | "wait" | "do" | "sleep";
 
 export type AgentAction = {
   type: ActionType;
