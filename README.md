@@ -4,7 +4,7 @@
 
 灵感来源于 Stanford [Generative Agents (Smallville)](https://github.com/joonspk-research/generative_agents)，按图图世界本地化。
 
-> 形态：2D 网格小镇 · 技术栈：Next.js 14 + TypeScript · 模型：**任何 OpenAI 兼容协议**（本地 Ollama / LM Studio / vLLM / 远端 OpenAI / DeepSeek / Moonshot…）
+> **形态**：2D 网格小镇 · **技术栈**：Next.js 14 + TypeScript · **模型**：任何 OpenAI 兼容协议（本地 Ollama / LM Studio / vLLM / 远端 OpenAI / DeepSeek / Moonshot…）
 
 ## 它能做什么
 
@@ -14,42 +14,66 @@
 - 互动是涌现的：壮壮看见图图可能会先吃醋，张小丽撞见胡英俊偷溜面馆可能会发飙。
 - 可视化 2D 小镇 + 实时对话气泡 + 事件日志 + 单角色"内心戏"面板。
 
+## ⚠️ 模型选择最关键
+
+**请用"小且非思考"的 instruct 模型**，否则仿真完全跑不起来：
+
+- 7 个角色每个 tick 都在请求决策。如果模型 30+ 秒/次（典型思考模型），整个世界会卡得像停滞。
+- **思考模型（Qwen3 全系、DeepSeek-R1 系等）默认会先 `<think>...</think>` 大段思考再回答，速度比同尺寸 instruct 模型慢 3-10 倍**。
+- 单 GPU 推理 7B 已经是边界，**3B 是甜蜜点**。
+
+| 推荐 | 大小 | 单次决策耗时（M 系芯片 / 8GB+ GPU）| 备注 |
+|---|---|---|---|
+| ⭐ `qwen2.5:3b-instruct` | 1.9GB | 1-3s | **首选**。中文好、JSON 跟随 OK、速度快 |
+| `qwen2.5:7b-instruct` | 4.7GB | 3-8s | 角色扮演更稳，慢一倍 |
+| `qwen2.5:1.5b-instruct` | 1GB | <1s | 速度极快但人设细节会糊 |
+| ❌ `qwen3:8b` / `qwen3:14b` | - | 10-30s | 思考模型，默认很慢；想用要在 `.env.local` 设 `TUTU_DISABLE_THINKING=1` |
+| ❌ `deepseek-r1:*` | - | 30s+ | 同上 |
+
+远端 API（DeepSeek、Moonshot、OpenAI 等）速度通常都够。
+
 ## 5 分钟跑起来
 
-### 1. 选一个 OpenAI 兼容的模型后端
+### 1. 准备 OpenAI 兼容的模型后端
 
-**本地（推荐 Ollama）**
+**本地 Ollama**：
 
 ```bash
-# 安装 ollama，然后拉一个中文能力还可以的小模型
-ollama pull qwen2.5:7b-instruct
+ollama pull qwen2.5:3b-instruct
 ollama serve  # 默认监听 http://localhost:11434
 ```
 
-**或 LM Studio**：打开 LM Studio，下载一个 chat 模型，启动本地 server（默认 `http://localhost:1234`）。
+**或 LM Studio**：下载一个 chat 模型，启动本地 server（默认 `http://localhost:1234`）。
 
-**或远端 OpenAI 兼容服务**：DeepSeek / Moonshot / OpenAI / 通义千问 OpenAI 模式 …… 任何遵循 `/v1/chat/completions` 协议的都行。
+**或远端**：DeepSeek / Moonshot / OpenAI / 通义千问 OpenAI 模式…… 任何遵循 `/v1/chat/completions` 协议的都行。
 
 ### 2. 配置环境变量
 
 ```bash
 cp .env.local.example .env.local
-# 编辑 .env.local，填入对应 baseURL / apiKey / model
+# 编辑 .env.local
 ```
 
 ```env
 # Ollama 示例
 OPENAI_BASE_URL=http://localhost:11434/v1
 OPENAI_API_KEY=ollama
-OPENAI_MODEL=qwen2.5:7b-instruct
-
-# DeepSeek 示例
-# OPENAI_BASE_URL=https://api.deepseek.com/v1
-# OPENAI_API_KEY=sk-xxxxx
-# OPENAI_MODEL=deepseek-chat
+OPENAI_MODEL=qwen2.5:3b-instruct
+TUTU_MAX_TOKENS=600
+TUTU_DISABLE_THINKING=0      # 用非思考模型时设 0；用 Qwen3 等思考模型设 1
+TUTU_JSON_MODE=0             # Ollama 上对 json_object 支持参差，默认关
+TUTU_DEBUG_LLM=1             # 每次决策打一行摘要到终端
+NEXT_PUBLIC_TICK_INTERVAL_MS=2500
 ```
 
-### 3. 装依赖 + 起服务
+```env
+# DeepSeek 示例
+OPENAI_BASE_URL=https://api.deepseek.com/v1
+OPENAI_API_KEY=sk-xxxxx
+OPENAI_MODEL=deepseek-chat
+```
+
+### 3. 装依赖 + 跑
 
 ```bash
 npm install
@@ -57,56 +81,95 @@ npm run dev
 # 打开 http://localhost:3000
 ```
 
-点 **▶ 开始**，仿真就跑起来了。第一次 LLM 调用可能要等几秒（尤其是本地小模型）。
+点 **▶ 开始**。第一次 LLM 调用可能要等几秒，正常。
 
 ## 操作
 
-- 顶部 **▶ 开始 / ⏸ 暂停 / ↺ 重置 / 速度切换**
-- 点 **地图上的角色** 或右侧 **名册** 中的卡片 → 右下角面板显示 TA 的当前动作、想法、最近 8 条记忆
-- 底部 **事件日志** 滚动显示发生的所有事情
+| 控件 | 作用 |
+|---|---|
+| **▶ 开始 / ⏸ 暂停** | 启停 tick 循环 |
+| **⏭ 单步** | 暂停状态下手动推进一格 tick（调试模型决策时最有用）|
+| **↺ 重置** | tick 归零，所有 agent 回到初始位置 |
+| **速度 0.25× / 0.5× / 1× / 2× / 4×** | 倍速 tick 间隔。本地慢模型选 0.25×~0.5× 比较跟得上 |
+| **点角色** | 地图上或名册里点一下，右侧详情面板显示 TA 的人设、当前动作、想法、最近 8 条记忆 |
+
+## 看日志
+
+**浏览器 console** —— 每个 tick 的派发情况：
+
+```
+[tick 5] 派 胡图图(idle), 张小丽(hasHeard) | 跳过 胡英俊=决策中 牛爷爷=走路中 ...
+```
+
+**Next dev 终端** —— 每次 LLM 调用前后摘要：
+
+```
+→ 胡图图    询问中…
+← 胡图图    11042ms 52t · say → 张小丽：「我就要嘛！」 · 想法："妈妈又凶我…"
+```
+
+想看完整 prompt 和 raw response，`.env.local` 加 `TUTU_DEBUG_VERBOSE=1`。
 
 ## 仿真节奏调参
 
-- `NEXT_PUBLIC_TICK_INTERVAL_MS`（默认 1500ms）：每 tick 的实时秒数。
-- 仿真中每 tick = 5 个 in-sim 分钟（7:00 开始一天）。
-- 每个角色至少 12 ticks 触发一次重新决策；说话/做事完成后立刻决策。
-- 同时进行的 LLM 决策上限为 2（避免压垮本地模型），可在 `lib/simulation.ts` 顶部的 `MAX_CONCURRENT_DECISIONS` 调整。
-- 7B 模型每次决策大约 5-15 秒，14B 模型大约 10-30 秒；想流畅就上更快的远端 API 或更小的模型。
+| 参数 | 在哪 | 当前值 | 含义 |
+|---|---|---|---|
+| `NEXT_PUBLIC_TICK_INTERVAL_MS` | `.env.local` | 2500 | 每 tick 真实毫秒（仅 dev 启动时读，改完要重启）|
+| `TUTU_MAX_TOKENS` | `.env.local` | 600 | LLM 输出上限。被截断会报 `finish=length` |
+| `MAX_CONCURRENT_DECISIONS` | [lib/simulation.ts:14](lib/simulation.ts#L14) | 4 | 同时进行的 LLM 调用数。本地 GPU 建议 2-5，远端 API 可拉到 10+ |
+| `RE_DECIDE_TICKS` | [lib/simulation.ts:13](lib/simulation.ts#L13) | 12 | 在做事的 agent 多久强制重新决策一次（让 agent 不一直杵在那）|
+| `NEAR_RADIUS` | [lib/simulation.ts:11](lib/simulation.ts#L11) | 5 | 说话广播的曼哈顿距离上限 |
+| `SPEECH_TTL_TICKS` | [lib/simulation.ts:12](lib/simulation.ts#L12) | 4 | 头顶对话气泡的显示时长 |
+| `TICK_MINUTES` | [lib/simulation.ts:18](lib/simulation.ts#L18) | 5 | 每 tick 在仿真世界里推进多少分钟 |
 
 ## 项目结构
 
 ```
 tutu-ai/
 ├── app/
-│   ├── page.tsx              # 主页（仿真 UI + tick 驱动）
+│   ├── page.tsx              # 主页（UI + tick 心跳驱动）
 │   ├── layout.tsx
 │   ├── globals.css
-│   └── api/agent/decide/     # POST: 给定 agent + observation → action
+│   └── api/agent/decide/     # POST: 给定 agent + observation → 返回 action JSON
 ├── components/
-│   ├── WorldView.tsx         # SVG 2D 地图
-│   ├── AgentPanel.tsx        # 名册 + 单角色面板
-│   ├── EventLog.tsx
-│   └── Controls.tsx
+│   ├── WorldView.tsx         # SVG 2D 地图（角色 emoji + 气泡 + 思考光圈）
+│   ├── AgentPanel.tsx        # 名册 + 单角色详情面板
+│   ├── EventLog.tsx          # 滚动事件日志
+│   └── Controls.tsx          # ▶⏸⏭↺ + 速度档
 └── lib/
     ├── types.ts              # 核心数据类型
-    ├── world.ts              # 地图、地点、移动
-    ├── characters.ts         # 7 个图图世界角色 + 人设
-    ├── llm.ts                # OpenAI 兼容客户端（zod 校验）
+    ├── world.ts              # 地图、地点、移动数学
+    ├── characters.ts         # 7 个图图世界角色 + 人设字符串
+    ├── llm.ts                # OpenAI 兼容客户端（zod 校验、剥 think 标签）
     ├── agent.ts              # 提示词构建 + 决策标准化
-    └── simulation.ts         # Zustand store + tick 循环 + 决策派发
+    └── simulation.ts         # Zustand store + tick 循环 + 决策派发 + 记忆/广播
 ```
 
 ## 自己加角色 / 地点
 
-- 加角色：编辑 `lib/characters.ts`，复制一项，填好 `persona`、`voice`、`relationships`、`schedule`、`homeId`。
-- 加地点：编辑 `lib/world.ts` 的 `PLACES`，确保 `rect` 在 `WORLD_W × WORLD_H`（32×20）范围内不严重重叠。
+- **加角色**：编辑 `lib/characters.ts`，复制一项，填好 `persona`、`voice`、`relationships`、`schedule`、`homeId`、`color`、`emoji`。
+- **加地点**：编辑 `lib/world.ts` 的 `PLACES`，确保 `rect` 在 `WORLD_W × WORLD_H`（32×20）范围内不严重重叠。
+
+## 核心循环 1 分钟
+
+每 2.5s（默认 tick interval），主循环做两件事：
+
+1. **物理推进**（[`tickOnce()`](lib/simulation.ts#L170)）：所有 agent 走路 1 格、气泡过期、到达事件。
+2. **决策派发**（[`diagnoseTick()`](lib/simulation.ts#L276)）：扫每个 agent，满足以下任一条件**且**并发未满 4 → 派 LLM：
+   - `idle`：当前没事做
+   - `stale`：≥ 12 ticks 没决策过
+   - `hasHeard`：被人喊话了
+
+被派的 agent 拿当下 observation（位置 / nearby / 最近 8 条记忆 / pending speech）走 `/api/agent/decide` 端点 → LLM 输出 `{thought, action}` → 回到前端 [`applyDecision()`](lib/simulation.ts#L207) 落地（设 targetPos / speech / activity / busy）。
+
+LLM 调用是 async fire-and-forget，所以 tick 心跳永远不被慢模型拖住。
 
 ## 已知局限 / 后续方向
 
-- 暂无路径规划，agent 直线穿过地点。如果你想加 A*，墙体在 `world.ts` 里加 `walls` 字段即可。
-- 记忆是 ring buffer，没有反思/总结/长期记忆。可加 Stanford 论文里的 "reflection" 步骤。
-- 视觉是 SVG emoji，可换成 sprite sheet 或像素图图角色立绘。
-- 不知道用户介入怎么玩？可以加一个"以图图身份说话"的输入框，把用户的话作为 pendingHeard 注入到附近角色。
+- 暂无路径规划，agent 直线穿过地点。如要加 A*，墙体在 `world.ts` 里加 `walls` 字段。
+- 记忆是 ring buffer（24 条上限），没有 Stanford 论文里的反思（reflection）层。
+- 视觉是 SVG emoji，没像素小人。
+- 没有用户介入接口。后续可加"以路人身份说话"的输入框，把用户话作为 `pendingHeard` 注入。
 
 ## 协议
 
