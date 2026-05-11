@@ -15,6 +15,29 @@ body {
   background: #f5f3ec;
 }
 
+/* 全局滚动条美化 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.32);
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @layer components {
   .bubble {
     @apply bg-white border border-black/10 rounded-2xl px-2 py-1 text-[11px] leading-tight shadow-bubble;

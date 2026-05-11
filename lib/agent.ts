@@ -1,9 +1,6 @@
 import type { AgentAction, AgentDecision, CharacterPersona, Observation } from "./types";
-import { CHARACTER_BY_NAME } from "./characters";
-import { PLACES, getPlaceByName } from "./world";
+import type { Scenario } from "./scenarios";
 import { callDecide, type RawDecision } from "./llm";
-
-const PLACE_NAMES = PLACES.map((p) => `「${p.name}」`).join("、");
 
 function relationshipsBlock(persona: CharacterPersona): string {
   const entries = Object.entries(persona.relationships);
@@ -11,8 +8,9 @@ function relationshipsBlock(persona: CharacterPersona): string {
   return entries.map(([k, v]) => `- ${k}: ${v}`).join("\n");
 }
 
-export function buildSystemPrompt(persona: CharacterPersona): string {
-  return `你正在扮演中国动画《大耳朵图图》世界里的角色：${persona.name}（${persona.age}岁）。
+export function buildSystemPrompt(persona: CharacterPersona, scenario: Scenario): string {
+  const placeNames = scenario.places.map((p) => `「${p.name}」`).join("、");
+  return `你正在扮演场景「${scenario.name}」里的角色：${persona.name}（${persona.age}岁）。
 
 【角色设定】
 ${persona.persona}
@@ -27,7 +25,8 @@ ${relationshipsBlock(persona)}
 ${persona.schedule}
 
 【世界设定】
-这是一个 2D 小镇仿真。地图上有以下地点：${PLACE_NAMES}。
+${scenario.description}
+地图上有以下地点：${placeNames}。
 你必须以这个角色的视角思考和行动，保持人设和口吻一致。回答必须是有效 JSON，符合：
 
 {
@@ -44,30 +43,53 @@ ${persona.schedule}
 
 【行为规则】
 - 必须只输出一个 JSON 对象，不要任何额外文字、不要 Markdown 围栏。
-- 不要破坏人设：小孩说小孩的话，大人说大人的话。
+- 不要破坏人设。
 - 优先回应身边人对你说的话，但你可以选择回避、转身就走、敷衍——按人设来。
 - 想去某处用 go_to，想和身边某人说话用 say，想待着发呆用 wait，想做某件具体事用 do。
 - **say 的 target 必须是当前【周围的人】里列出的人**。想找不在身边的人？先 go_to 到他在的地方。
 - 不要瞬移：要去远处先用 go_to 一步步过去。`;
 }
 
-function timeOfDayHint(timeOfDay: string): string {
+// 把 "h-h" 形式的 key（如 "9-12"）转成 [start, end)，并匹配当前小时。
+function lookupCustomHint(hints: Record<string, string>, h: number): string | null {
+  for (const [range, text] of Object.entries(hints)) {
+    const m = range.match(/^(\d+)-(\d+)$/);
+    if (!m) continue;
+    const start = parseInt(m[1], 10);
+    const end = parseInt(m[2], 10);
+    if (start <= end ? h >= start && h < end : h >= start || h < end) {
+      return text;
+    }
+  }
+  return null;
+}
+
+function defaultHint(h: number): string {
+  if (h >= 23 || h < 6) return "深夜，绝大多数人应该在家睡觉。";
+  if (h < 8) return "清晨刚起床，准备吃早饭、洗漱出门。";
+  if (h < 12) return "上午时段，多数人在工作或上学。";
+  if (h < 14) return "中午饭点，吃午饭的时段。";
+  if (h < 17) return "下午时段，多数人在工作。";
+  if (h < 19) return "傍晚下班放学时间，回家或准备晚饭。";
+  if (h < 22) return "晚上，下班放学回家，吃饭、休闲。";
+  return "夜深了，准备洗漱睡觉。";
+}
+
+function timeOfDayHint(timeOfDay: string, scenario: Scenario): string {
   const m = timeOfDay.match(/(\d{2}):/);
   if (!m) return "";
   const h = parseInt(m[1], 10);
-  if (h >= 23 || h < 6) return "现在是深夜，正常人都在自己家里睡觉。如果你已经在家就别乱跑，没在家就赶紧回家。";
-  if (h < 8) return "清晨刚起床，准备吃早饭、洗漱、收拾出门。";
-  if (h < 12) return "上午时段，小孩在幼儿园上课，大人在工作或做家务。";
-  if (h < 14) return "中午饭点，大家在吃午饭。";
-  if (h < 17) return "下午时段，小孩在幼儿园，大人继续工作。";
-  if (h < 19) return "傍晚放学下班时间，正在回家或准备晚饭。";
-  if (h < 22) return "晚上在家休息、看电视、做家务。";
-  return "夜深了，该洗漱准备睡觉。";
+  const custom = scenario.world.timeOfDayHints;
+  if (custom) {
+    const hit = lookupCustomHint(custom, h);
+    if (hit) return hit;
+  }
+  return defaultHint(h);
 }
 
-export function buildUserPrompt(obs: Observation): string {
+export function buildUserPrompt(obs: Observation, scenario: Scenario): string {
   const lines: string[] = [];
-  const hint = timeOfDayHint(obs.timeOfDay);
+  const hint = timeOfDayHint(obs.timeOfDay, scenario);
   lines.push(`【现在】tick=${obs.tick}，${obs.timeOfDay}${hint ? "（" + hint + "）" : ""}`);
   lines.push(`【你在哪】${obs.currentPlace}`);
   if (obs.nearby.length > 0) {
@@ -93,7 +115,7 @@ export function buildUserPrompt(obs: Observation): string {
   return lines.join("\n");
 }
 
-export function normalizeDecision(raw: RawDecision): AgentDecision {
+export function normalizeDecision(raw: RawDecision, scenario: Scenario): AgentDecision {
   const action: AgentAction = { type: raw.action.type };
   const duration = raw.action.duration_seconds;
   if (typeof duration === "number" && duration > 0) {
@@ -101,13 +123,13 @@ export function normalizeDecision(raw: RawDecision): AgentDecision {
   }
   if (raw.action.type === "go_to") {
     const name = (raw.action.place || "").trim();
-    const place = getPlaceByName(name);
+    const place = scenario.places.find((p) => p.name === name || p.id === name);
     if (place) action.placeId = place.id;
   }
   if (raw.action.type === "say") {
     const target = (raw.action.target || "").trim();
     if (target) {
-      const persona = CHARACTER_BY_NAME[target];
+      const persona = scenario.characters.find((c) => c.name === target || c.id === target);
       action.target = persona?.id ?? target.toLowerCase();
     }
     action.utterance = (raw.action.utterance || "").trim() || undefined;
@@ -125,10 +147,11 @@ export function normalizeDecision(raw: RawDecision): AgentDecision {
 
 export async function decideForAgent(
   persona: CharacterPersona,
-  observation: Observation
+  observation: Observation,
+  scenario: Scenario
 ): Promise<AgentDecision> {
-  const sys = buildSystemPrompt(persona);
-  const usr = buildUserPrompt(observation);
+  const sys = buildSystemPrompt(persona, scenario);
+  const usr = buildUserPrompt(observation, scenario);
   const raw = await callDecide(sys, usr, persona.name);
-  return normalizeDecision(raw);
+  return normalizeDecision(raw, scenario);
 }

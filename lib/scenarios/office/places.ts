@@ -1,0 +1,58 @@
+import type { Place } from "../../types";
+
+export const OFFICE_PLACES: Place[] = [
+  {
+    id: "open_office",
+    name: "开放办公区",
+    kind: "home",
+    rect: { x: 1, y: 2, w: 13, h: 10 },
+    anchor: { x: 7, y: 6 },
+    color: "#e6f0f8",
+    emoji: "💻",
+  },
+  {
+    id: "ceo_office",
+    name: "老板办公室",
+    kind: "home",
+    rect: { x: 15, y: 2, w: 6, h: 5 },
+    anchor: { x: 17, y: 4 },
+    color: "#f0e6d2",
+    emoji: "🪑",
+  },
+  {
+    id: "meeting_room",
+    name: "会议室",
+    kind: "plaza",
+    rect: { x: 15, y: 8, w: 7, h: 5 },
+    anchor: { x: 18, y: 10 },
+    color: "#d6ddf0",
+    emoji: "📋",
+  },
+  {
+    id: "tea_room",
+    name: "茶水间",
+    kind: "restaurant",
+    rect: { x: 23, y: 2, w: 8, h: 5 },
+    anchor: { x: 26, y: 4 },
+    color: "#ffe5d4",
+    emoji: "☕",
+  },
+  {
+    id: "lounge",
+    name: "休息区",
+    kind: "park",
+    rect: { x: 23, y: 8, w: 8, h: 5 },
+    anchor: { x: 26, y: 10 },
+    color: "#e0f0d8",
+    emoji: "🛋️",
+  },
+  {
+    id: "reception",
+    name: "前台",
+    kind: "shop",
+    rect: { x: 1, y: 14, w: 12, h: 4 },
+    anchor: { x: 6, y: 15 },
+    color: "#f0d6e0",
+    emoji: "🎫",
+  },
+];

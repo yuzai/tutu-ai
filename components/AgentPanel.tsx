@@ -1,8 +1,23 @@
 "use client";
 
-import { CHARACTER_BY_ID, CHARACTERS } from "@/lib/characters";
-import { placeAt } from "@/lib/world";
+import { useMemo } from "react";
 import { useSim } from "@/lib/simulation";
+import { getScenarioById } from "@/lib/scenarios";
+import type { Place, Position } from "@/lib/types";
+
+function placeAtIn(places: Place[], pos: Position): Place | null {
+  for (const p of places) {
+    if (
+      pos.x >= p.rect.x &&
+      pos.x < p.rect.x + p.rect.w &&
+      pos.y >= p.rect.y &&
+      pos.y < p.rect.y + p.rect.h
+    ) {
+      return p;
+    }
+  }
+  return null;
+}
 
 function actionLabel(a: ReturnType<typeof useSim.getState>["agents"][string]): string {
   if (a.targetPos) return "🚶 走路中";
@@ -19,12 +34,14 @@ export function AgentRoster() {
   const agents = useSim((s) => s.agents);
   const selectedId = useSim((s) => s.selectedAgentId);
   const selectAgent = useSim((s) => s.selectAgent);
+  const scenarioId = useSim((s) => s.scenarioId);
+  const scenario = useMemo(() => getScenarioById(scenarioId), [scenarioId]);
 
   return (
     <div className="panel p-3">
       <h3 className="text-sm font-bold text-stone-700 mb-2">角色名册</h3>
       <div className="grid grid-cols-2 gap-1.5">
-        {CHARACTERS.map((c) => {
+        {scenario.characters.map((c) => {
           const a = agents[c.id];
           const sel = selectedId === c.id;
           return (
@@ -44,7 +61,9 @@ export function AgentRoster() {
               <span className="min-w-0">
                 <div className="text-[12px] font-semibold truncate">{c.name}</div>
                 <div className="text-[10px] text-stone-500 truncate">
-                  {a?.isDeciding ? "思考中…" : placeAt(a?.pos ?? { x: 0, y: 0 })?.name ?? "街上"}
+                  {a?.isDeciding
+                    ? "思考中…"
+                    : placeAtIn(scenario.places, a?.pos ?? { x: 0, y: 0 })?.name ?? "街上"}
                 </div>
               </span>
             </button>
@@ -58,8 +77,11 @@ export function AgentRoster() {
 export function AgentInspector() {
   const selectedId = useSim((s) => s.selectedAgentId);
   const agent = useSim((s) => (selectedId ? s.agents[selectedId] : null));
+  const scenarioId = useSim((s) => s.scenarioId);
+  const scenario = useMemo(() => getScenarioById(scenarioId), [scenarioId]);
+  const persona = selectedId ? scenario.characters.find((c) => c.id === selectedId) : null;
 
-  if (!selectedId || !agent) {
+  if (!selectedId || !agent || !persona) {
     return (
       <div className="panel p-3 h-full">
         <h3 className="text-sm font-bold text-stone-700 mb-1">角色详情</h3>
@@ -67,8 +89,7 @@ export function AgentInspector() {
       </div>
     );
   }
-  const persona = CHARACTER_BY_ID[selectedId];
-  const placeName = placeAt(agent.pos)?.name ?? "街道上";
+  const placeName = placeAtIn(scenario.places, agent.pos)?.name ?? "街道上";
 
   return (
     <div className="panel p-3 h-full flex flex-col overflow-hidden">

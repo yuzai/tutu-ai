@@ -1,8 +1,8 @@
 "use client";
 
-import { CHARACTERS, CHARACTER_BY_ID } from "@/lib/characters";
-import { PLACES, WORLD_H, WORLD_W } from "@/lib/world";
+import { useMemo } from "react";
 import { useSim } from "@/lib/simulation";
+import { getScenarioById } from "@/lib/scenarios";
 
 const CELL = 28;
 
@@ -10,13 +10,22 @@ export function WorldView() {
   const agents = useSim((s) => s.agents);
   const selectedId = useSim((s) => s.selectedAgentId);
   const selectAgent = useSim((s) => s.selectAgent);
+  const scenarioId = useSim((s) => s.scenarioId);
 
-  const W = WORLD_W * CELL;
-  const H = WORLD_H * CELL;
+  const scenario = useMemo(() => getScenarioById(scenarioId), [scenarioId]);
+  const PLACES = scenario.places;
+  const CHARACTERS = scenario.characters;
+  const charById = useMemo(
+    () => Object.fromEntries(CHARACTERS.map((c) => [c.id, c])),
+    [CHARACTERS]
+  );
+
+  const W = scenario.world.width * CELL;
+  const H = scenario.world.height * CELL;
 
   return (
     <div className="panel p-3">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto rounded-lg" style={{ background: "#f4ecd8" }}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto max-h-full rounded-lg" preserveAspectRatio="xMidYMid meet" style={{ background: "#f4ecd8" }}>
         <defs>
           <pattern id="grid" width={CELL} height={CELL} patternUnits="userSpaceOnUse">
             <path d={`M ${CELL} 0 L 0 0 0 ${CELL}`} fill="none" stroke="rgba(0,0,0,0.05)" strokeWidth={0.5} />

@@ -1,12 +1,16 @@
 "use client";
 
 import { create } from "zustand";
-import { CHARACTERS, CHARACTER_BY_ID } from "./characters";
-import { PLACE_BY_ID, placeAt, stepToward, randomCellInPlace, stableCellInPlace } from "./world";
+import { stepToward, randomCellInPlace, stableCellInPlace } from "./world";
+import { getScenarioById, DEFAULT_SCENARIO_ID } from "./scenarios";
+import type { Scenario } from "./scenarios";
 import type {
   AgentDecision,
   AgentRuntime,
+  CharacterPersona,
   Observation,
+  Place,
+  Position,
   WorldEvent,
 } from "./types";
 
@@ -18,11 +22,9 @@ const MEMORY_CAP = 24;
 const RE_DECIDE_TICKS = 12;
 const MAX_CONCURRENT_DECISIONS = 4;
 const EVENT_LOG_CAP = 200;
-const TICK_MINUTES = 5;
-const START_HOUR = 7;
 
-function clockFromTick(tick: number): string {
-  const totalMin = START_HOUR * 60 + tick * TICK_MINUTES;
+function clockFromTick(tick: number, scenario: Scenario): string {
+  const totalMin = scenario.world.startHour * 60 + tick * scenario.world.tickMinutes;
   const wrapped = ((totalMin % (24 * 60)) + 24 * 60) % (24 * 60);
   const h = Math.floor(wrapped / 60);
   const m = wrapped % 60;
@@ -32,13 +34,34 @@ function clockFromTick(tick: number): string {
   return `${period} ${hh}:${mm}`;
 }
 
-function placeName(pos: { x: number; y: number }): string {
-  return placeAt(pos)?.name ?? "街道上";
+function placeAtIn(places: Place[], pos: Position): Place | null {
+  for (const p of places) {
+    if (
+      pos.x >= p.rect.x &&
+      pos.x < p.rect.x + p.rect.w &&
+      pos.y >= p.rect.y &&
+      pos.y < p.rect.y + p.rect.h
+    ) {
+      return p;
+    }
+  }
+  return null;
 }
 
-function makeInitialAgent(persona: (typeof CHARACTERS)[number]): AgentRuntime {
-  const home = PLACE_BY_ID[persona.homeId];
-  // 用 id 哈希确定首次位置 — 服务端/客户端一致，避免 hydration mismatch。
+function placeNameAt(scenario: Scenario, pos: Position): string {
+  return placeAtIn(scenario.places, pos)?.name ?? "街道上";
+}
+
+function charById(scenario: Scenario, id: string): CharacterPersona | undefined {
+  return scenario.characters.find((c) => c.id === id);
+}
+
+function placeById(scenario: Scenario, id: string): Place | undefined {
+  return scenario.places.find((p) => p.id === id);
+}
+
+function makeInitialAgent(persona: CharacterPersona, scenario: Scenario): AgentRuntime {
+  const home = placeById(scenario, persona.homeId);
   const pos = home ? stableCellInPlace(home, persona.id) : { x: 0, y: 0 };
   return {
     id: persona.id,
@@ -55,8 +78,10 @@ function makeInitialAgent(persona: (typeof CHARACTERS)[number]): AgentRuntime {
   };
 }
 
-function initialAgents(): Record<string, AgentRuntime> {
-  return Object.fromEntries(CHARACTERS.map((c) => [c.id, makeInitialAgent(c)]));
+function initialAgentsFor(scenario: Scenario): Record<string, AgentRuntime> {
+  return Object.fromEntries(
+    scenario.characters.map((c) => [c.id, makeInitialAgent(c, scenario)])
+  );
 }
 
 type PendingHeard = { from: string; text: string };
@@ -72,6 +97,7 @@ export type AgentDiag =
   | { id: string; name: string; dispatch: false; skip: SkipReason };
 
 type SimState = {
+  scenarioId: string;
   tick: number;
   paused: boolean;
   speed: SimSpeed;
@@ -90,6 +116,7 @@ type SimState = {
   markDecisionStart: (agentId: string) => void;
   markDecisionEnd: (agentId: string, error?: string) => void;
   reset: () => void;
+  switchScenario: (scenarioId: string) => void;
   diagnoseTick: () => AgentDiag[];
   buildObservation: (agentId: string) => Observation;
 };
@@ -108,41 +135,44 @@ function addMemory(agent: AgentRuntime, tick: number, text: string, importance =
   }
 }
 
+function freshStateFor(scenarioId: string, label: "start" | "reset") {
+  const scenario = getScenarioById(scenarioId);
+  const text =
+    label === "start"
+      ? `${scenario.name}的一天开始了。`
+      : `切换到 ${scenario.name}。`;
+  return {
+    scenarioId: scenario.id,
+    tick: 0,
+    paused: true,
+    agents: initialAgentsFor(scenario),
+    events: [{ tick: 0, kind: "start" as const, actor: "system", text }],
+    pendingHeard: {},
+    decisionsInFlight: new Set<string>(),
+    selectedAgentId: null,
+    lastError: null,
+  };
+}
+
 export const useSim = create<SimState>((set, get) => ({
-  tick: 0,
-  paused: true,
+  ...freshStateFor(DEFAULT_SCENARIO_ID, "start"),
   speed: 1,
-  agents: initialAgents(),
-  events: [
-    {
-      tick: 0,
-      kind: "start",
-      actor: "system",
-      text: "翻斗大杂院的一天开始了。",
-    },
-  ],
-  pendingHeard: {},
-  decisionsInFlight: new Set(),
-  selectedAgentId: null,
-  lastError: null,
 
   setPaused: (p) => set({ paused: p }),
   setSpeed: (s) => set({ speed: s }),
   selectAgent: (id) => set({ selectedAgentId: id }),
 
   reset: () =>
-    set({
-      tick: 0,
-      paused: true,
-      agents: initialAgents(),
-      events: [
-        { tick: 0, kind: "start", actor: "system", text: "重置：翻斗大杂院的一天重新开始。" },
-      ],
-      pendingHeard: {},
-      decisionsInFlight: new Set(),
-      selectedAgentId: null,
-      lastError: null,
-    }),
+    set((s) => ({
+      ...freshStateFor(s.scenarioId, "reset"),
+      speed: s.speed,
+    })),
+
+  switchScenario: (scenarioId) =>
+    set((s) => ({
+      ...freshStateFor(scenarioId, "reset"),
+      speed: s.speed,
+    })),
 
   markDecisionStart: (agentId) =>
     set((s) => {
@@ -169,6 +199,7 @@ export const useSim = create<SimState>((set, get) => ({
 
   tickOnce: () =>
     set((s) => {
+      const scenario = getScenarioById(s.scenarioId);
       const nextTick = s.tick + 1;
       const agents: Record<string, AgentRuntime> = { ...s.agents };
       const events = [...s.events];
@@ -183,11 +214,12 @@ export const useSim = create<SimState>((set, get) => ({
 
         if (a.targetPos) {
           if (a.pos.x === a.targetPos.x && a.pos.y === a.targetPos.y) {
-            const arrivedAt = placeName(a.pos);
+            const arrivedAt = placeNameAt(scenario, a.pos);
+            const persona = charById(scenario, id);
             pushEvent(events, {
               tick: nextTick,
               kind: "arrive",
-              actor: CHARACTER_BY_ID[id].name,
+              actor: persona?.name ?? id,
               text: `走到了 ${arrivedAt}`,
             });
             addMemory(a, nextTick, `我到了 ${arrivedAt}`);
@@ -206,7 +238,8 @@ export const useSim = create<SimState>((set, get) => ({
 
   applyDecision: (agentId, decision) =>
     set((s) => {
-      const persona = CHARACTER_BY_ID[agentId];
+      const scenario = getScenarioById(s.scenarioId);
+      const persona = charById(scenario, agentId);
       if (!persona) return s;
       const a = { ...s.agents[agentId] };
       const agents = { ...s.agents };
@@ -223,12 +256,11 @@ export const useSim = create<SimState>((set, get) => ({
       }
 
       const act = decision.action;
-      // 新决策若不是 go_to，先停下脚步（避免边说话/做事还在自动走路）。
       if (act.type !== "go_to") {
         a.targetPos = null;
       }
       if (act.type === "go_to" && act.placeId) {
-        const place = PLACE_BY_ID[act.placeId];
+        const place = placeById(scenario, act.placeId);
         if (place) {
           a.targetPos = randomCellInPlace(place);
           a.busyUntilTick = now + 60;
@@ -240,7 +272,7 @@ export const useSim = create<SimState>((set, get) => ({
         const utter = (act.utterance || "").slice(0, 80);
         if (utter) {
           a.speech = { text: utter, expiresTick: now + SPEECH_TTL_TICKS };
-          const targetName = act.target ? CHARACTER_BY_ID[act.target]?.name ?? act.target : null;
+          const targetName = act.target ? charById(scenario, act.target)?.name ?? act.target : null;
           const display = targetName && targetName !== "everyone" ? `对 ${targetName} 说` : "说";
           pushEvent(events, {
             tick: now,
@@ -250,8 +282,6 @@ export const useSim = create<SimState>((set, get) => ({
           });
           addMemory(a, now, `我${display}：「${utter}」`);
 
-          // 严格按距离传播：不在 NEAR_RADIUS 内的人听不见，即使被点名也一样。
-          // 想叫远处的人，模型应该先 go_to 过去。
           for (const otherId of Object.keys(agents)) {
             if (otherId === agentId) continue;
             const other = agents[otherId];
@@ -282,17 +312,17 @@ export const useSim = create<SimState>((set, get) => ({
 
   diagnoseTick: () => {
     const s = get();
+    const scenario = getScenarioById(s.scenarioId);
     const out: AgentDiag[] = [];
     let slotsLeft = MAX_CONCURRENT_DECISIONS - s.decisionsInFlight.size;
     for (const id of Object.keys(s.agents)) {
       const a = s.agents[id];
-      const name = CHARACTER_BY_ID[id].name;
+      const name = charById(scenario, id)?.name ?? id;
       if (a.isDeciding) {
         out.push({ id, name, dispatch: false, skip: "决策中" });
         continue;
       }
       const hasHeard = (s.pendingHeard[id]?.length ?? 0) > 0;
-      // 走路中默认跳过；但被人喊话（hasHeard）优先级最高，能打断脚步。
       if (a.targetPos && !hasHeard) {
         out.push({ id, name, dispatch: false, skip: "走路中" });
         continue;
@@ -326,18 +356,32 @@ export const useSim = create<SimState>((set, get) => ({
 
   buildObservation: (agentId) => {
     const s = get();
+    const scenario = getScenarioById(s.scenarioId);
     const a = s.agents[agentId];
-    const persona = CHARACTER_BY_ID[agentId];
+    const persona = charById(scenario, agentId);
+    if (!a || !persona) {
+      return {
+        selfName: agentId,
+        timeOfDay: clockFromTick(s.tick, scenario),
+        tick: s.tick,
+        currentPlace: "未知",
+        nearby: [],
+        recentEvents: [],
+        relationshipsContext: "",
+        pendingSpeechFrom: [],
+      };
+    }
     const nearby = [];
     for (const id of Object.keys(s.agents)) {
       if (id === agentId) continue;
       const other = s.agents[id];
       const dist = Math.abs(other.pos.x - a.pos.x) + Math.abs(other.pos.y - a.pos.y);
       if (dist <= NEAR_RADIUS) {
-        const op = CHARACTER_BY_ID[id];
+        const op = charById(scenario, id);
+        if (!op) continue;
         nearby.push({
           name: op.name,
-          placeName: placeName(other.pos),
+          placeName: placeNameAt(scenario, other.pos),
           activity:
             other.currentAction?.activity ||
             (other.currentAction?.type === "go_to"
@@ -355,9 +399,9 @@ export const useSim = create<SimState>((set, get) => ({
       .join("；");
     return {
       selfName: persona.name,
-      timeOfDay: clockFromTick(s.tick),
+      timeOfDay: clockFromTick(s.tick, scenario),
       tick: s.tick,
-      currentPlace: placeName(a.pos),
+      currentPlace: placeNameAt(scenario, a.pos),
       nearby,
       recentEvents,
       relationshipsContext: relCtx,
@@ -376,17 +420,20 @@ export function consumePendingHeard(agentId: string) {
 }
 
 export function clockOf(tick: number): string {
-  return clockFromTick(tick);
+  const s = useSim.getState();
+  return clockFromTick(tick, getScenarioById(s.scenarioId));
 }
 
 export async function requestDecisionFor(agentId: string): Promise<AgentDecision | null> {
-  const obs = useSim.getState().buildObservation(agentId);
+  const s = useSim.getState();
+  const scenarioId = s.scenarioId;
+  const obs = s.buildObservation(agentId);
   useSim.getState().markDecisionStart(agentId);
   try {
     const resp = await fetch("/api/agent/decide", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ agentId, observation: obs }),
+      body: JSON.stringify({ agentId, scenarioId, observation: obs }),
     });
     if (!resp.ok) {
       const txt = await resp.text();
@@ -394,6 +441,11 @@ export async function requestDecisionFor(agentId: string): Promise<AgentDecision
       return null;
     }
     const data = (await resp.json()) as { decision: AgentDecision };
+    // 如果在等模型期间用户已切换场景，直接丢弃这次结果。
+    if (useSim.getState().scenarioId !== scenarioId) {
+      useSim.getState().markDecisionEnd(agentId);
+      return null;
+    }
     consumePendingHeard(agentId);
     useSim.getState().applyDecision(agentId, data.decision);
     useSim.getState().markDecisionEnd(agentId);

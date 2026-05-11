@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { CHARACTER_BY_ID } from "@/lib/characters";
 import { decideForAgent } from "@/lib/agent";
+import { getScenarioById, DEFAULT_SCENARIO_ID } from "@/lib/scenarios";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +21,7 @@ const ObservationSchema = z.object({
 
 const RequestSchema = z.object({
   agentId: z.string(),
+  scenarioId: z.string().optional(),
   observation: ObservationSchema,
 });
 
@@ -35,16 +36,20 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "bad request", details: parsed.error.message }, { status: 400 });
   }
-  const persona = CHARACTER_BY_ID[parsed.data.agentId];
+  const scenario = getScenarioById(parsed.data.scenarioId ?? DEFAULT_SCENARIO_ID);
+  const persona = scenario.characters.find((c) => c.id === parsed.data.agentId);
   if (!persona) {
-    return NextResponse.json({ error: `unknown agent: ${parsed.data.agentId}` }, { status: 404 });
+    return NextResponse.json(
+      { error: `unknown agent in scenario ${scenario.id}: ${parsed.data.agentId}` },
+      { status: 404 }
+    );
   }
   try {
-    const decision = await decideForAgent(persona, parsed.data.observation);
+    const decision = await decideForAgent(persona, parsed.data.observation, scenario);
     return NextResponse.json({ decision });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[decide] ${persona.name} failed:`, msg);
+    console.error(`[decide] ${scenario.id}/${persona.name} failed:`, msg);
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

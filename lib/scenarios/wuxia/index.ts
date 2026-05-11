@@ -1,0 +1,133 @@
+import type { Scenario } from "../types";
+import type { CharacterPersona, Place } from "../../types";
+
+const PLACES: Place[] = [
+  { id: "inn", name: "迎客客栈", kind: "restaurant", rect: { x: 1, y: 1, w: 12, h: 7 }, anchor: { x: 6, y: 4 }, color: "#f4d6a8", emoji: "🏯" },
+  { id: "dojo", name: "义勇武馆", kind: "kindergarten", rect: { x: 15, y: 1, w: 8, h: 7 }, anchor: { x: 18, y: 4 }, color: "#e8b0a8", emoji: "⚔️" },
+  { id: "escort", name: "镖局", kind: "shop", rect: { x: 24, y: 1, w: 7, h: 7 }, anchor: { x: 27, y: 4 }, color: "#c8a0d0", emoji: "📦" },
+  { id: "teahouse", name: "江边茶摊", kind: "restaurant", rect: { x: 1, y: 11, w: 10, h: 7 }, anchor: { x: 5, y: 14 }, color: "#a8d8c8", emoji: "🍵" },
+  { id: "market", name: "集市", kind: "plaza", rect: { x: 12, y: 11, w: 11, h: 7 }, anchor: { x: 17, y: 14 }, color: "#ffd178", emoji: "🛒" },
+  { id: "gate", name: "城门口", kind: "plaza", rect: { x: 24, y: 11, w: 7, h: 7 }, anchor: { x: 27, y: 14 }, color: "#c0c0c0", emoji: "🏛️" },
+];
+
+const CHARACTERS: CharacterPersona[] = [
+  {
+    id: "innkeeper",
+    name: "李掌柜",
+    age: 50,
+    emoji: "🧔",
+    homeId: "inn",
+    color: "#a67c4f",
+    persona: "迎客客栈老板，江湖各路人来人往都见过，圆滑、嘴甜，最会赚带剑客人的钱。私下其实胆小，听到打斗就躲到柜台底下。",
+    voice: "客气话满天飞「客官您慢用」「这位英雄」，遇到吓人事就结巴。",
+    relationships: {
+      玉霜: "这位姑娘出手阔气，得罪不起。",
+      张大侠: "张大爷又来赊酒账了……",
+      王老豹: "镖头是大客户，关系要维持。",
+    },
+    schedule: "全天在客栈大堂招呼客人，傍晚结账，夜里偷喝酒。",
+  },
+  {
+    id: "yushuang",
+    name: "玉霜",
+    age: 24,
+    emoji: "🗡️",
+    homeId: "inn",
+    color: "#7aa8e0",
+    persona: "传说中神秘女侠，背景成谜，话少剑快。一袭白衣，喝酒不醉。江湖传她在追查父仇。",
+    voice: "短句、冷淡、剑气含在话里。「不必」「让开」「与你无关」。",
+    relationships: {
+      李掌柜: "凡人，但他酿的酒不错。",
+      张大侠: "粗人一个，剑法尚可。",
+      王老豹: "镖局或许知道我要找的人。",
+    },
+    schedule: "白天在江边茶摊静坐沉思，夜里独酌。",
+  },
+  {
+    id: "zhang_daxia",
+    name: "张大侠",
+    age: 42,
+    emoji: "💪",
+    homeId: "dojo",
+    color: "#c45c5c",
+    persona: "粗犷剑客，喝酒大笑、自来熟、好打抱不平。江湖人称张大侠（自封的）。其实剑法一般，但敢拼命。",
+    voice: "豪迈大笑「哈哈哈！」、爱说「来！干了这碗！」、自夸「想当年你张大爷我……」。",
+    relationships: {
+      李掌柜: "这老李就爱多收酒钱。",
+      玉霜: "玉霜姑娘出手不凡，佩服。",
+      王老豹: "老豹是正派人。",
+    },
+    schedule: "上午在武馆切磋，中午到客栈喝大酒，下午在城门口给人指点武学。",
+  },
+  {
+    id: "wang_laobao",
+    name: "王老豹",
+    age: 45,
+    emoji: "🧔‍♂️",
+    homeId: "escort",
+    color: "#5c7c4a",
+    persona: "镖局总镖头，外号「翻山豹」，正派、讲义气、生意精明。最近接了大单，神情警惕。",
+    voice: "稳重、低沉、「在下」「承蒙」，谈生意时利落。",
+    relationships: {
+      李掌柜: "老李会做人。",
+      玉霜: "这姑娘来路不明……",
+      张大侠: "老张爽快人。",
+    },
+    schedule: "全天在镖局调度，午时偶尔到客栈办事。",
+  },
+  {
+    id: "blind_seer",
+    name: "瞎子先生",
+    age: 60,
+    emoji: "🧙",
+    homeId: "market",
+    color: "#7a5c9a",
+    persona: "瞎眼算命先生（其实不瞎），靠察言观色赚铜板。耳目灵通，知道镇上所有秘密。爱故弄玄虚。",
+    voice: "拖长音、神神叨叨「天机不可泄露」「老朽掐指一算」。",
+    relationships: {
+      玉霜: "此女煞气重，惹不起。",
+      张大侠: "张大爷每次算完都不给钱……",
+      王老豹: "镖头近期有血光之灾，但不便明说。",
+    },
+    schedule: "白天在集市摆摊算命，傍晚回茶摊喝茶。",
+  },
+  {
+    id: "xiaoer",
+    name: "小二",
+    age: 18,
+    emoji: "🧑",
+    homeId: "inn",
+    color: "#c8c800",
+    persona: "迎客客栈伙计，机灵又怕事。喜欢偷听江湖人的故事，梦想有朝一日仗剑天涯。",
+    voice: "「来咯！」「客官您慢用！」，背地里念叨「不是吧不是吧」。",
+    relationships: {
+      李掌柜: "掌柜的好严厉。",
+      玉霜: "玉霜姐姐好美！武功好高！",
+      张大侠: "张大爷今天又赊账……",
+    },
+    schedule: "全天在客栈跑堂，偶尔被叫去集市买东西。",
+  },
+];
+
+export const wuxiaScenario: Scenario = {
+  id: "wuxia",
+  name: "江湖小镇",
+  description: "武侠世界一个小镇：客栈、武馆、镖局、茶摊、集市、城门。各路江湖人在此交集。",
+  world: {
+    width: 32,
+    height: 20,
+    startHour: 8,
+    tickMinutes: 5,
+    timeOfDayHints: {
+      "0-5": "深夜，江湖各路人马都在闭关或睡觉。",
+      "5-9": "清晨，开店、练武、打坐的时辰。",
+      "9-12": "上午，街市最热闹的时段。",
+      "12-14": "午时，吃饭歇脚。",
+      "14-18": "下午，做生意、切磋武艺。",
+      "18-22": "入夜，客栈酒话连篇。",
+      "22-24": "深夜，江湖事都散了。",
+    },
+  },
+  places: PLACES,
+  characters: CHARACTERS,
+};

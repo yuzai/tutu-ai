@@ -1,6 +1,7 @@
 "use client";
 
 import { clockOf, requestDecisionFor, useSim, type SimSpeed } from "@/lib/simulation";
+import { ScenarioSelector } from "./ScenarioSelector";
 
 const SPEEDS: SimSpeed[] = [0.25, 0.5, 1, 2, 4];
 
@@ -73,9 +74,12 @@ export function Controls() {
         ))}
       </div>
 
-      <div className="ml-auto flex items-center gap-2 text-[11px] text-stone-500">
-        <span className={`inline-block w-2 h-2 rounded-full ${inflight > 0 ? "bg-amber-400 animate-pulse" : "bg-stone-300"}`} />
-        LLM 决策中：{inflight}
+      <div className="ml-auto flex items-center gap-3">
+        <ScenarioSelector />
+        <div className="flex items-center gap-2 text-[11px] text-stone-500">
+          <span className={`inline-block w-2 h-2 rounded-full ${inflight > 0 ? "bg-amber-400 animate-pulse" : "bg-stone-300"}`} />
+          LLM 决策中：{inflight}
+        </div>
       </div>
 
       {lastError && (
