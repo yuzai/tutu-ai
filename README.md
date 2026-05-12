@@ -12,9 +12,9 @@
 
 ## 🚀 一键部署 / 在线体验
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/tutu-ai&project-name=tutu-ai&repository-name=tutu-ai)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yuzai/tutu-ai&project-name=tutu-ai&repository-name=tutu-ai)
 
-> **🌐 在线 Demo**：(待部署后填入 URL) — 直接体验，自带 ⚙️ 面板填你自己的 LLM key。
+> **🌐 在线 Demo**：<https://tutu-ai-one.vercel.app/> — 直接体验，自带 ⚙️ 面板填你自己的 LLM key。
 
 部署后用户访问首页 → 选场景 → 进入仿真 → 点 ⚙️ 填自己的 API key（Ollama / DeepSeek / OpenAI 均可），立即开跑。**服务端零状态、零环境变量、不存任何 key**。
 
