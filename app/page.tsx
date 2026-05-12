@@ -33,7 +33,7 @@ export default function HomePage() {
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           <a
-            href="https://github.com"
+            href="https://github.com/yuzai/tutu-ai"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-md bg-stone-900 text-white hover:bg-stone-700 transition"

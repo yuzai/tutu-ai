@@ -61,15 +61,26 @@ export const PRESETS: LLMPreset[] = [
   },
 ];
 
+// 部署到云端时，localhost Ollama 显然连不上。第一次访问且本地无配置时，
+// 自动切到云端预设（key 留空，访客自己填）。本地开发(localhost)继续用 Ollama。
+function pickFreshDefaults(): LLMConfig {
+  if (typeof window === "undefined") return DEFAULTS;
+  const host = window.location.hostname;
+  const isLocal = host === "localhost" || host === "127.0.0.1" || host === "0.0.0.0";
+  if (isLocal) return DEFAULTS;
+  const cloud = PRESETS.find((p) => p.id === "deepseek-v4-flash")?.patch ?? {};
+  return { ...DEFAULTS, ...cloud, apiKey: "" };
+}
+
 function loadFromStorage(): LLMConfig {
   if (typeof window === "undefined") return DEFAULTS;
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULTS;
+    if (!raw) return pickFreshDefaults();
     const parsed = JSON.parse(raw);
     return { ...DEFAULTS, ...parsed };
   } catch {
-    return DEFAULTS;
+    return pickFreshDefaults();
   }
 }
 
@@ -99,8 +110,9 @@ export const useConfig = create<ConfigState>((set, get) => ({
     set({ config: next });
   },
   resetConfig: () => {
-    saveToStorage(DEFAULTS);
-    set({ config: DEFAULTS });
+    const fresh = pickFreshDefaults();
+    saveToStorage(fresh);
+    set({ config: fresh });
   },
   hydrate: () => {
     if (get().hydrated) return;
