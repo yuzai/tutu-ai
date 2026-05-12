@@ -1,0 +1,58 @@
+import type { Place } from "../../types";
+
+export const INLAWS_PLACES: Place[] = [
+  {
+    id: "living_room",
+    name: "客厅",
+    kind: "home",
+    rect: { x: 1, y: 2, w: 13, h: 10 },
+    anchor: { x: 7, y: 6 },
+    color: "#f9e5cf",
+    emoji: "🛋️",
+  },
+  {
+    id: "dining",
+    name: "餐桌",
+    kind: "restaurant",
+    rect: { x: 15, y: 2, w: 7, h: 6 },
+    anchor: { x: 18, y: 4 },
+    color: "#f7d59a",
+    emoji: "🍲",
+  },
+  {
+    id: "kitchen",
+    name: "厨房",
+    kind: "restaurant",
+    rect: { x: 23, y: 2, w: 8, h: 6 },
+    anchor: { x: 26, y: 4 },
+    color: "#ffd6cc",
+    emoji: "🍳",
+  },
+  {
+    id: "balcony",
+    name: "阳台",
+    kind: "park",
+    rect: { x: 15, y: 9, w: 7, h: 4 },
+    anchor: { x: 18, y: 10 },
+    color: "#cfeae0",
+    emoji: "🚬",
+  },
+  {
+    id: "master_bedroom",
+    name: "主卧",
+    kind: "home",
+    rect: { x: 1, y: 13, w: 13, h: 5 },
+    anchor: { x: 6, y: 15 },
+    color: "#e0d4f0",
+    emoji: "🛏️",
+  },
+  {
+    id: "sister_bedroom",
+    name: "小姑卧室",
+    kind: "home",
+    rect: { x: 23, y: 9, w: 8, h: 9 },
+    anchor: { x: 26, y: 13 },
+    color: "#ffdeec",
+    emoji: "💄",
+  },
+];

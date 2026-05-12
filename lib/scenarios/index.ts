@@ -7,9 +7,17 @@ import { gymScenario } from "./gym";
 import { schoolScenario } from "./school";
 import { playgroundScenario } from "./playground";
 import { festivalScenario } from "./festival";
+import { inlawsScenario } from "./inlaws";
+import { blindDateScenario } from "./blind_date";
+import { startupBreakupScenario } from "./startup_breakup";
+import { reunionScenario } from "./reunion";
 
 export const SCENARIOS: Record<string, Scenario> = {
   [tutuScenario.id]: tutuScenario,
+  [inlawsScenario.id]: inlawsScenario,
+  [blindDateScenario.id]: blindDateScenario,
+  [startupBreakupScenario.id]: startupBreakupScenario,
+  [reunionScenario.id]: reunionScenario,
   [officeScenario.id]: officeScenario,
   [schoolScenario.id]: schoolScenario,
   [playgroundScenario.id]: playgroundScenario,
