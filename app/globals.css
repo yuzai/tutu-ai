@@ -38,6 +38,18 @@ body {
   background: transparent;
 }
 
+/* 想法冒泡淡入 */
+@keyframes thoughtFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 0.95;
+    transform: translateY(0);
+  }
+}
+
 @layer components {
   .bubble {
     @apply bg-white border border-black/10 rounded-2xl px-2 py-1 text-[11px] leading-tight shadow-bubble;

@@ -48,6 +48,16 @@ export function stepToward(from: Position, to: Position): Position {
   return { x: from.x + dx, y: from.y + dy };
 }
 
+// 一次推进多步，让 agent 每 tick 移动多格 — 走路看起来更连续。
+export function stepTowardN(from: Position, to: Position, n: number): Position {
+  let cur = from;
+  for (let i = 0; i < n; i++) {
+    if (cur.x === to.x && cur.y === to.y) break;
+    cur = stepToward(cur, to);
+  }
+  return cur;
+}
+
 export function randomCellInPlace(p: Place): Position {
   const x = p.rect.x + Math.floor(Math.random() * p.rect.w);
   const y = p.rect.y + Math.floor(Math.random() * p.rect.h);

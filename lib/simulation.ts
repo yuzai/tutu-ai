@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { stepToward, randomCellInPlace, stableCellInPlace } from "./world";
+import { stepTowardN, randomCellInPlace, stableCellInPlace } from "./world";
 import { getScenarioById, DEFAULT_SCENARIO_ID } from "./scenarios";
 import { useConfig } from "./config";
 import type { Scenario } from "./scenarios";
@@ -236,7 +236,8 @@ export const useSim = create<SimState>((set, get) => ({
             a.targetPos = null;
             a.busyUntilTick = nextTick;
           } else {
-            a.pos = stepToward(a.pos, a.targetPos);
+            // 每 tick 推 3 格，配合 transition 让走路看起来连续不是跳格。
+            a.pos = stepTowardN(a.pos, a.targetPos, 3);
           }
         }
 

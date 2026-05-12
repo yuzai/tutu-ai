@@ -1,22 +1,24 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSim } from "@/lib/simulation";
+import { useConfig } from "@/lib/config";
 import { getScenarioById } from "@/lib/scenarios";
 import type { AgentRuntime, CharacterPersona } from "@/lib/types";
 
 const CELL = 28;
-// 走路过渡时长固定 600ms，与 tick 速度无关 — 1× 和 4× 看起来都"轻快一步"，
-// 而不是 1× 时拖很慢、4× 时飞快。
-const MOVE_STYLE: React.CSSProperties = {
-  transition: "transform 600ms ease-out",
-};
+const MIN_ZOOM_W_RATIO = 0.2;
+const MAX_ZOOM_W_RATIO = 3;
+
+type ViewBox = { x: number; y: number; w: number; h: number };
 
 export function WorldView() {
   const agents = useSim((s) => s.agents);
   const selectedId = useSim((s) => s.selectedAgentId);
   const selectAgent = useSim((s) => s.selectAgent);
   const scenarioId = useSim((s) => s.scenarioId);
+  const speed = useSim((s) => s.speed);
+  const tickIntervalMs = useConfig((s) => s.config.tickIntervalMs);
 
   const scenario = useMemo(() => getScenarioById(scenarioId), [scenarioId]);
   const PLACES = scenario.places;
@@ -25,13 +27,98 @@ export function WorldView() {
   const W = scenario.world.width * CELL;
   const H = scenario.world.height * CELL;
 
+  // 走路过渡时长 = 当前真实 tick 间隔（linear），让多个 tick 之间首尾相接 → 看起来连续行走。
+  // 配合 simulation 每 tick 走 3 格，1× 速也不会"挪一下停半秒"。
+  const realTickMs = Math.max(120, Math.floor(tickIntervalMs / speed));
+  const moveStyle: React.CSSProperties = useMemo(
+    () => ({ transition: `transform ${realTickMs}ms linear` }),
+    [realTickMs]
+  );
+
+  // viewBox state（pan + zoom）
+  const [viewBox, setViewBox] = useState<ViewBox>({ x: 0, y: 0, w: W, h: H });
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // 切场景时重置视图
+  useEffect(() => {
+    setViewBox({ x: 0, y: 0, w: W, h: H });
+  }, [W, H, scenarioId]);
+
+  // 鼠标滚轮缩放（注册 native event 以便 preventDefault）
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      setViewBox((vb) => {
+        const mx = ((e.clientX - rect.left) / rect.width) * vb.w + vb.x;
+        const my = ((e.clientY - rect.top) / rect.height) * vb.h + vb.y;
+        const scale = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+        const newW = Math.max(W * MIN_ZOOM_W_RATIO, Math.min(W * MAX_ZOOM_W_RATIO, vb.w * scale));
+        const ratio = newW / vb.w;
+        const newH = vb.h * ratio;
+        return {
+          x: mx - (mx - vb.x) * ratio,
+          y: my - (my - vb.y) * ratio,
+          w: newW,
+          h: newH,
+        };
+      });
+    };
+    svg.addEventListener("wheel", onWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", onWheel);
+  }, [W]);
+
+  // 拖动平移
+  const dragRef = useRef<{ startClientX: number; startClientY: number; startX: number; startY: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  function onMouseDown(e: React.MouseEvent<SVGSVGElement>) {
+    // 右键不触发
+    if (e.button !== 0) return;
+    dragRef.current = {
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startX: viewBox.x,
+      startY: viewBox.y,
+    };
+  }
+  function onMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const dx = ((e.clientX - drag.startClientX) / rect.width) * viewBox.w;
+    const dy = ((e.clientY - drag.startClientY) / rect.height) * viewBox.h;
+    if (!isDragging && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) setIsDragging(true);
+    // 注意：把 startX/startY 提到外层变量，避免 functional updater 异步执行时 dragRef 已被清空报 null。
+    const startX = drag.startX;
+    const startY = drag.startY;
+    setViewBox((vb) => ({ ...vb, x: startX - dx, y: startY - dy }));
+  }
+  function endDrag() {
+    dragRef.current = null;
+    // 微延迟让 click 事件先到 — 但因为 React click 会在 mouseup 时根据 mousedown/up 位置判断，drag 过会自动屏蔽 click。
+    setTimeout(() => setIsDragging(false), 0);
+  }
+
   return (
-    <div className="panel p-3">
+    <div className="panel p-3 relative">
       <svg
-        viewBox={`0 0 ${W} ${H}`}
-        className="w-full h-auto max-h-full rounded-lg"
+        ref={svgRef}
+        viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+        className="w-full h-auto max-h-full rounded-lg select-none"
         preserveAspectRatio="xMidYMid meet"
-        style={{ background: "#f4ecd8" }}
+        style={{
+          background: "#f4ecd8",
+          cursor: dragRef.current ? "grabbing" : "grab",
+        }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={endDrag}
+        onMouseLeave={endDrag}
       >
         <defs>
           <pattern id="grid" width={CELL} height={CELL} patternUnits="userSpaceOnUse">
@@ -42,7 +129,7 @@ export function WorldView() {
           </filter>
         </defs>
 
-        <rect width={W} height={H} fill="url(#grid)" />
+        <rect x={0} y={0} width={W} height={H} fill="url(#grid)" />
 
         {PLACES.map((p) => (
           <g key={p.id}>
@@ -70,7 +157,7 @@ export function WorldView() {
           </g>
         ))}
 
-        {/* Pass 1: 角色本体（圆 + emoji + 名字 + activity 小标签） */}
+        {/* Pass 1: 角色本体 */}
         {CHARACTERS.map((c) => {
           const a = agents[c.id];
           if (!a) return null;
@@ -81,8 +168,15 @@ export function WorldView() {
             <g
               key={`body-${c.id}`}
               transform={`translate(${cx}, ${cy})`}
-              onClick={() => selectAgent(isSelected ? null : c.id)}
-              style={{ cursor: "pointer", ...MOVE_STYLE }}
+              onClick={(e) => {
+                // 拖动过就不算 click
+                if (isDragging) {
+                  e.stopPropagation();
+                  return;
+                }
+                selectAgent(isSelected ? null : c.id);
+              }}
+              style={{ cursor: "pointer", ...moveStyle }}
             >
               {a.targetPos && (
                 <line
@@ -116,7 +210,7 @@ export function WorldView() {
               >
                 {c.name}
               </text>
-              <ActivityTag agent={a} />
+              <ActivityTag agent={a} invScale={viewBox.w / W} />
               {a.isDeciding && (
                 <circle r={CELL * 0.65} fill="none" stroke="#ffa500" strokeWidth={1.5} opacity={0.6}>
                   <animate attributeName="r" values={`${CELL * 0.55};${CELL * 0.85};${CELL * 0.55}`} dur="1.4s" repeatCount="indefinite" />
@@ -127,32 +221,56 @@ export function WorldView() {
           );
         })}
 
-        {/* Pass 2: 头顶 overlay（thought + speech）— 整体放在所有角色 body 之上，避免被其他人挡住 */}
-        {CHARACTERS.map((c) => renderOverlay(c, agents[c.id]))}
+        {/* Pass 2: 头顶气泡 — 总在所有角色之上，避免被其他人挡住。
+            invScale 让气泡视觉大小不随 zoom 改变，文字始终清晰可读。 */}
+        {CHARACTERS.map((c) => renderOverlay(c, agents[c.id], moveStyle, viewBox.w / W))}
       </svg>
+
+      {/* 视图重置 + 缩放比例提示 */}
+      <button
+        onClick={() => setViewBox({ x: 0, y: 0, w: W, h: H })}
+        className="absolute top-5 right-5 text-[11px] px-2 py-1 rounded bg-white/85 border border-black/10 hover:bg-white shadow-sm"
+        title="重置视图（双击地图也可）"
+      >
+        🎯 重置视图
+      </button>
+      <div className="absolute bottom-5 right-5 text-[10px] text-stone-500 bg-white/70 px-1.5 py-0.5 rounded pointer-events-none">
+        滚轮缩放 · 拖动平移 · {Math.round((W / viewBox.w) * 100)}%
+      </div>
     </div>
   );
 }
 
-function renderOverlay(c: CharacterPersona, a: AgentRuntime | undefined) {
+function renderOverlay(
+  c: CharacterPersona,
+  a: AgentRuntime | undefined,
+  moveStyle: React.CSSProperties,
+  invScale: number
+) {
   if (!a) return null;
-  if (!a.thoughtBubble && !a.speech) return null;
+  // 说话压制想法：同时有时只显示 speech
+  const showThought = !!a.thoughtBubble && !a.speech;
+  if (!showThought && !a.speech) return null;
   const cx = a.pos.x * CELL + CELL / 2;
   const cy = a.pos.y * CELL + CELL / 2;
   return (
     <g
       key={`overlay-${c.id}`}
       transform={`translate(${cx}, ${cy})`}
-      style={{ pointerEvents: "none", ...MOVE_STYLE }}
+      style={{ pointerEvents: "none", ...moveStyle }}
     >
-      {a.thoughtBubble && <ThoughtBubble text={a.thoughtBubble.text} />}
-      {a.speech && <SpeechBubble text={a.speech.text} />}
+      {/* scale(invScale) 让气泡视觉大小不随 zoom 变化 */}
+      <g transform={`scale(${invScale})`}>
+        {showThought && a.thoughtBubble && (
+          <ThoughtBubble key={`tb-${a.thoughtBubble.createdTick}`} text={a.thoughtBubble.text} />
+        )}
+        {a.speech && <SpeechBubble text={a.speech.text} />}
+      </g>
     </g>
   );
 }
 
-// 角色头顶下方的小标签：do/sleep 时显示当前活动；有 speech 时隐藏（避免重叠）。
-function ActivityTag({ agent }: { agent: AgentRuntime }) {
+function ActivityTag({ agent, invScale }: { agent: AgentRuntime; invScale: number }) {
   if (agent.speech) return null;
   const act = agent.currentAction;
   if (!act) return null;
@@ -167,26 +285,51 @@ function ActivityTag({ agent }: { agent: AgentRuntime }) {
   } else {
     return null;
   }
-  const truncated = label.length > 10 ? label.slice(0, 9) + "…" : label;
-  const w = Math.max(40, truncated.length * 10 + 22);
+  const maxWidth = 110;
+  const foreignHeight = 38;
+  // scale(invScale) 让标签视觉大小不随 zoom 变化，文字始终清晰。
   return (
-    <g transform={`translate(${-w / 2}, ${CELL * 1.05})`}>
-      <rect
-        width={w}
-        height={16}
-        rx={8}
-        fill="rgba(255,255,255,0.92)"
-        stroke="rgba(0,0,0,0.12)"
-        strokeWidth={0.75}
-      />
-      <text x={w / 2} y={11.5} textAnchor="middle" fontSize={10} fill="#555">
-        {emoji} {truncated}
-      </text>
+    <g transform={`translate(0, ${CELL * 1.0}) scale(${invScale})`}>
+      <foreignObject
+        x={-maxWidth / 2}
+        y={0}
+        width={maxWidth}
+        height={foreignHeight}
+        style={{ overflow: "visible" }}
+      >
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.92)",
+              border: "1px solid rgba(0,0,0,0.12)",
+              borderRadius: "8px",
+              padding: "2px 8px",
+              fontSize: "10px",
+              lineHeight: "1.25",
+              color: "#555",
+              maxWidth: `${maxWidth - 8}px`,
+              wordBreak: "break-word",
+              textAlign: "center",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}
+          >
+            {emoji} {label}
+          </div>
+        </div>
+      </foreignObject>
     </g>
   );
 }
 
-// 多行对话气泡：用 foreignObject 嵌入 HTML，支持自动换行。
 function SpeechBubble({ text }: { text: string }) {
   const maxWidth = 180;
   const foreignHeight = CELL * 3.2;
@@ -238,7 +381,6 @@ function SpeechBubble({ text }: { text: string }) {
   );
 }
 
-// 想法冒泡：贴在人物右上方，静态显示（无动画），过期自动消失。
 function ThoughtBubble({ text }: { text: string }) {
   const maxWidth = 140;
   const foreignHeight = CELL * 2.2;
@@ -258,12 +400,14 @@ function ThoughtBubble({ text }: { text: string }) {
             display: "flex",
             justifyContent: "flex-start",
             alignItems: "flex-end",
+            animation: "thoughtFadeIn 0.3s ease-out forwards",
+            opacity: 0,
           }}
         >
           <div
             style={{
-              background: "rgba(255,255,255,0.92)",
-              border: "1px dashed rgba(0,0,0,0.25)",
+              background: "rgba(255,255,255,0.9)",
+              border: "1px dashed rgba(0,0,0,0.22)",
               borderRadius: "12px",
               padding: "3px 9px",
               fontSize: "10.5px",
