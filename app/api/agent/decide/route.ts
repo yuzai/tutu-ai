@@ -5,6 +5,8 @@ import { getScenarioById, DEFAULT_SCENARIO_ID } from "@/lib/scenarios";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel Hobby plan 函数默认 10s 超时，60s 是 Hobby 上限。LLM 慢请求需要这个。
+export const maxDuration = 60;
 
 const ObservationSchema = z.object({
   selfName: z.string(),
