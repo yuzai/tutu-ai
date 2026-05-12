@@ -1,5 +1,6 @@
 # tutu-ai · 多智能体生成式仿真框架
 
+[![CI](https://github.com/yuzai/tutu-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/yuzai/tutu-ai/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](tsconfig.json)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org)

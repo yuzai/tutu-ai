@@ -1,0 +1,57 @@
+name: 🐛 Bug 报告
+description: 报告一个 bug 或异常行为
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你来反馈！请尽量提供足够信息，方便复现和定位。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 现象是什么？
+      description: 你期望什么、实际发生了什么。截图/录屏更佳。
+      placeholder: 例如：场景切换到 office 后，角色站着不动，event log 没有任何输出。
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      description: 一步一步描述如何复现。
+      placeholder: |
+        1. 打开 http://localhost:3000
+        2. 选择 office 场景
+        3. 点 ▶ 开始
+        4. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: model-backend
+    attributes:
+      label: 用的什么模型后端？
+      options:
+        - DeepSeek V4 Flash（远端）
+        - DeepSeek V4 Pro（远端）
+        - Ollama 本地（qwen2.5:3b-instruct）
+        - Ollama 本地（其他模型）
+        - LM Studio / vLLM 本地
+        - 其他远端 OpenAI 兼容 API
+    validations:
+      required: true
+  - type: input
+    id: model-name
+    attributes:
+      label: 具体的 model 名（⚙️ 里那个字符串）
+      placeholder: 例如：deepseek-v4-flash / qwen2.5:7b-instruct
+  - type: textarea
+    id: console
+    attributes:
+      label: 浏览器 console + Next dev 终端输出
+      description: 把 `[tick N] 派 ...` 这类日志、报错堆栈贴一下。verbose 模式（⚙️ 勾上）的日志更有用。
+      render: text
+  - type: input
+    id: env
+    attributes:
+      label: 系统/浏览器
+      placeholder: 例如：macOS 14.5 / Chrome 124 / Node 20.10

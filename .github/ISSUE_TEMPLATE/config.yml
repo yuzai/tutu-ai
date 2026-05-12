@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 讨论 / 问问题
+    url: https://github.com/yuzai/tutu-ai/discussions
+    about: 一般性问题、想法交流、求助等优先去 Discussions，避免 issue 列表淹没。
