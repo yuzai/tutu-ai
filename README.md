@@ -31,9 +31,7 @@
 | 🏯 **wuxia** | 江湖小镇（客栈/武馆/镖局/算命瞎子）| 6 |
 | 🏚️ **xianxia** | 青云宗（掌门/大师兄/二师姐/小师妹）| 6 |
 
-在 `.env.local` 切换：`NEXT_PUBLIC_SCENARIO=office`（改完要**重启** dev server）。
-
-也可以加你自己的场景，见下文"自定义场景"。
+右上角**场景下拉**一键切换，无需重启。也可以加你自己的场景，见下文"自定义场景"。
 
 ## 它能做什么
 
@@ -47,75 +45,43 @@
 - **运行时配置**：浏览器 ⚙️ 面板里填 baseURL / API key / model / 并发等，零环境变量。
 - **多场景切换**：UI 上一键切换场景，无需重启。
 
-## ⚠️ 模型选择最关键
+## 模型选择
 
-**请用"小且非思考"的 instruct 模型**，否则仿真完全跑不起来：
+**最省心**：用 **DeepSeek 远端 API**。便宜、快、JSON 跟随好。⚙️ 面板里直接选「DeepSeek V4 Flash」预设，填上 API key 就跑。
 
-- 7 个角色每个 tick 都在请求决策。如果模型 30+ 秒/次（典型思考模型），整个世界会卡得像停滞。
-- **思考模型（Qwen3 全系、DeepSeek-R1 系等）默认会先 `<think>...</think>` 大段思考再回答，速度比同尺寸 instruct 模型慢 3-10 倍**。
-- 单 GPU 推理 7B 已经是边界，**3B 是甜蜜点**。
+**想本地跑**：Ollama 上拉一个 `qwen2.5:3b-instruct`（1.9GB），M 系芯片 / 8GB+ GPU 单次决策 1-3s。**别用思考模型**（Qwen3、DeepSeek-R1 等），它们要先 `<think>...</think>` 10-30s 再回答，仿真节奏完全跑不起来。
 
-| 推荐 | 大小 | 单次决策耗时（M 系芯片 / 8GB+ GPU）| 备注 |
-|---|---|---|---|
-| ⭐ `qwen2.5:3b-instruct` | 1.9GB | 1-3s | **首选**。中文好、JSON 跟随 OK、速度快 |
-| `qwen2.5:7b-instruct` | 4.7GB | 3-8s | 角色扮演更稳，慢一倍 |
-| `qwen2.5:1.5b-instruct` | 1GB | <1s | 速度极快但人设细节会糊 |
-| ❌ `qwen3:8b` / `qwen3:14b` | - | 10-30s | 思考模型，默认很慢；想用要在 `.env.local` 设 `TUTU_DISABLE_THINKING=1` |
-| ❌ `deepseek-r1:*` | - | 30s+ | 同上 |
-
-远端 API（DeepSeek、Moonshot、OpenAI 等）速度通常都够。
+| 推荐 | 单次决策 | 备注 |
+|---|---|---|
+| ⭐ DeepSeek V4 Flash（远端） | <2s | **首选**。⚙️ 预设里直接选 |
+| `qwen2.5:3b-instruct`（本地 Ollama）| 1-3s | 本地跑首选，1.9GB |
+| `qwen2.5:7b-instruct`（本地 Ollama）| 3-8s | 角色扮演更稳，4.7GB |
+| ❌ Qwen3 全系 / DeepSeek-R1 | 10-30s+ | 思考模型，太慢，不推荐 |
 
 ## 5 分钟跑起来
 
-### 1. 准备 OpenAI 兼容的模型后端
-
-**本地 Ollama**：
-
-```bash
-ollama pull qwen2.5:3b-instruct
-ollama serve  # 默认监听 http://localhost:11434
-```
-
-**或 LM Studio**：下载一个 chat 模型，启动本地 server（默认 `http://localhost:1234`）。
-
-**或远端**：DeepSeek / Moonshot / OpenAI / 通义千问 OpenAI 模式…… 任何遵循 `/v1/chat/completions` 协议的都行。
-
-### 2. 配置环境变量
-
-```bash
-cp .env.local.example .env.local
-# 编辑 .env.local
-```
-
-```env
-# Ollama 示例
-OPENAI_BASE_URL=http://localhost:11434/v1
-OPENAI_API_KEY=ollama
-OPENAI_MODEL=qwen2.5:3b-instruct
-TUTU_MAX_TOKENS=600
-TUTU_DISABLE_THINKING=0      # 用非思考模型时设 0；用 Qwen3 等思考模型设 1
-TUTU_JSON_MODE=0             # Ollama 上对 json_object 支持参差，默认关
-TUTU_DEBUG_LLM=1             # 每次决策打一行摘要到终端
-NEXT_PUBLIC_TICK_INTERVAL_MS=2500
-NEXT_PUBLIC_SCENARIO=tutu    # 切场景：tutu 或 office
-```
-
-```env
-# DeepSeek 示例
-OPENAI_BASE_URL=https://api.deepseek.com/v1
-OPENAI_API_KEY=sk-xxxxx
-OPENAI_MODEL=deepseek-chat
-```
-
-### 3. 装依赖 + 跑
+### 方案 A：用 DeepSeek（最省心）
 
 ```bash
 npm install
 npm run dev
-# 打开 http://localhost:3000
+# 打开 http://localhost:3000 → 选场景 → 进入 sim 页
+# 点 ⚙️ 设置 → 选「DeepSeek V4 Flash」预设 → 填 API key → ▶ 开始
 ```
 
-点 **▶ 开始**。第一次 LLM 调用可能要等几秒，正常。
+### 方案 B：本地 Ollama
+
+```bash
+ollama pull qwen2.5:3b-instruct
+ollama serve  # 默认监听 http://localhost:11434
+
+npm install
+npm run dev
+# 打开 http://localhost:3000 → 选场景 → 进入 sim 页
+# ⚙️ 设置默认就是 Ollama 预设 → ▶ 开始
+```
+
+所有 baseURL / API key / model / 并发 / 调试日志都在 **⚙️ 设置弹窗**里，**浏览器 localStorage 保存**，**服务端不读任何环境变量、不存任何 key**。第一次 LLM 调用要等几秒是正常的。
 
 ## 操作
 
@@ -146,51 +112,53 @@ npm run dev
 ← 胡图图    11042ms 52t · say → 张小丽：「我就要嘛！」 · 想法："妈妈又凶我…"
 ```
 
-想看完整 prompt 和 raw response，`.env.local` 加 `TUTU_DEBUG_VERBOSE=1`。
+想看完整 prompt 和 raw response，在 ⚙️ 设置里勾上 **verbose** 开关。
 
 ## 仿真节奏调参
 
-| 参数 | 在哪 | 当前值 | 含义 |
+| 参数 | 在哪 | 默认 | 含义 |
 |---|---|---|---|
-| `NEXT_PUBLIC_TICK_INTERVAL_MS` | `.env.local` | 2500 | 每 tick 真实毫秒（仅 dev 启动时读，改完要重启）|
-| `TUTU_MAX_TOKENS` | `.env.local` | 600 | LLM 输出上限。被截断会报 `finish=length` |
-| `MAX_CONCURRENT_DECISIONS` | [lib/simulation.ts:14](lib/simulation.ts#L14) | 4 | 同时进行的 LLM 调用数。本地 GPU 建议 2-5，远端 API 可拉到 10+ |
-| `RE_DECIDE_TICKS` | [lib/simulation.ts:13](lib/simulation.ts#L13) | 12 | 在做事的 agent 多久强制重新决策一次（让 agent 不一直杵在那）|
-| `NEAR_RADIUS` | [lib/simulation.ts:11](lib/simulation.ts#L11) | 5 | 说话广播的曼哈顿距离上限 |
-| `SPEECH_TTL_TICKS` | [lib/simulation.ts:12](lib/simulation.ts#L12) | 4 | 头顶对话气泡的显示时长 |
-| `TICK_MINUTES` | [lib/simulation.ts:18](lib/simulation.ts#L18) | 5 | 每 tick 在仿真世界里推进多少分钟 |
+| `tickIntervalMs` | ⚙️ 设置 | 2500 | 每 tick 真实毫秒数（实时反映，不用重启）|
+| `maxTokens` | ⚙️ 设置 | 600 | LLM 输出上限。被截断会报 `finish=length` |
+| `maxConcurrent` | ⚙️ 设置 | 4 | 同时进行的 LLM 调用数。本地 GPU 2-5、远端 API 可拉到 16+ |
+| `RE_DECIDE_TICKS` | [lib/simulation.ts](lib/simulation.ts) | 12 | 做事的 agent 多久强制重新决策一次 |
+| `NEAR_RADIUS` | [lib/simulation.ts](lib/simulation.ts) | 5 | 说话广播的曼哈顿距离上限 |
+| `SPEECH_TTL_TICKS` | [lib/simulation.ts](lib/simulation.ts) | 4 | 头顶对话气泡的显示时长 |
+| `tickMinutes` | 各 scenario.world | 5 | 每 tick 在仿真世界里推进多少分钟（场景级配置）|
 
 ## 项目结构
 
 ```
 tutu-ai/
 ├── app/
-│   ├── page.tsx              # 主页（UI + tick 心跳驱动）
+│   ├── page.tsx              # Landing 页（hero + 场景卡片）
+│   ├── sim/page.tsx          # 仿真页（UI + tick 心跳驱动）
 │   ├── layout.tsx
 │   ├── globals.css
+│   ├── icon.svg              # favicon
 │   └── api/agent/decide/     # POST: 给定 agent + observation → 返回 action JSON
 ├── components/
-│   ├── WorldView.tsx         # SVG 2D 地图（角色 emoji + 气泡 + 思考光圈）
+│   ├── WorldView.tsx         # SVG 2D 地图（角色 + 对话/想法气泡 + 活动标签 + 缩放平移）
 │   ├── AgentPanel.tsx        # 名册 + 单角色详情面板
 │   ├── EventLog.tsx          # 滚动事件日志
-│   └── Controls.tsx          # ▶⏸⏭↺ + 速度档
+│   ├── Controls.tsx          # ▶⏸⏭↺ + 速度档 + ⚙️
+│   ├── ScenarioSelector.tsx  # 场景下拉
+│   ├── SettingsModal.tsx     # ⚙️ LLM 配置弹窗
+│   └── UserSayPanel.tsx      # 路人介入输入框
 └── lib/
     ├── scenarios/            # ⭐ 所有场景数据在这里
     │   ├── types.ts          # Scenario 类型定义
-    │   ├── index.ts          # 场景注册 + 当前激活场景
-    │   ├── tutu/             # 翻斗大杂院场景
-    │   │   ├── places.ts
-    │   │   ├── characters.ts
-    │   │   └── index.ts
-    │   └── office/           # 科技公司场景
-    │       ├── places.ts
-    │       ├── characters.ts
-    │       └── index.ts
+    │   ├── index.ts          # 场景注册表 + 默认场景
+    │   ├── tutu/             # 8 个场景（tutu / office / school / playground /
+    │   ├── office/           #            gym / festival / wuxia / xianxia）
+    │   ├── school/           # 每个目录三件套：places.ts / characters.ts / index.ts
+    │   └── ...
     ├── types.ts              # 仿真核心数据类型
     ├── world.ts              # 地图、移动数学（从 active scenario 取数据）
     ├── characters.ts         # 角色访问层（从 active scenario 取数据）
     ├── llm.ts                # OpenAI 兼容客户端（zod 校验、剥 think 标签）
     ├── agent.ts              # 提示词构建 + 决策标准化
+    ├── config.ts             # Zustand 客户端配置 store（localStorage 持久化）
     └── simulation.ts         # Zustand store + tick 循环 + 决策派发 + 记忆/广播
 ```
 
@@ -241,7 +209,7 @@ export const SCENARIOS: Record<string, Scenario> = {
 };
 ```
 
-然后 `.env.local` 设 `NEXT_PUBLIC_SCENARIO=my_world`，重启 dev server。
+保存后重启 dev server，场景下拉里就会出现「我的世界」。
 
 ### Place 的格式
 
@@ -288,7 +256,7 @@ export const SCENARIOS: Record<string, Scenario> = {
    - `stale`：≥ 12 ticks 没决策过
    - `hasHeard`：被人喊话了
 
-被派的 agent 拿当下 observation（位置 / nearby / 最近 8 条记忆 / pending speech）走 `/api/agent/decide` 端点 → LLM 输出 `{thought, action}` → 回到前端 [`applyDecision()`](lib/simulation.ts#L207) 落地（设 targetPos / speech / activity / busy）。
+被派的 agent 拿当下 observation（位置 / nearby / 最近 16 条记忆 / pending speech）走 `/api/agent/decide` 端点 → LLM 输出 `{thought, action}` → 回到前端 [`applyDecision()`](lib/simulation.ts#L207) 落地（设 targetPos / speech / activity / busy）。
 
 LLM 调用是 async fire-and-forget，所以 tick 心跳永远不被慢模型拖住。
 
