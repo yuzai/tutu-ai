@@ -10,6 +10,14 @@
 
 > **形态**：2D 网格 · **技术栈**：Next.js 14 + TypeScript · **模型**：任何 OpenAI 兼容协议（本地 Ollama / LM Studio / vLLM / 远端 OpenAI / DeepSeek / Moonshot…）
 
+## 🚀 一键部署 / 在线体验
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/tutu-ai&project-name=tutu-ai&repository-name=tutu-ai)
+
+> **🌐 在线 Demo**：(待部署后填入 URL) — 直接体验，自带 ⚙️ 面板填你自己的 LLM key。
+
+部署后用户访问首页 → 选场景 → 进入仿真 → 点 ⚙️ 填自己的 API key（Ollama / DeepSeek / OpenAI 均可），立即开跑。**服务端零状态、零环境变量、不存任何 key**。
+
 ## 自带 8 个场景
 
 | 场景 | 描述 | 角色数 |

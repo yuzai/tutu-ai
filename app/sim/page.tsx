@@ -6,6 +6,7 @@ import { WorldView } from "@/components/WorldView";
 import { EventLog } from "@/components/EventLog";
 import { AgentInspector, AgentRoster } from "@/components/AgentPanel";
 import { Controls } from "@/components/Controls";
+import { UserSayPanel } from "@/components/UserSayPanel";
 import { requestDecisionFor, useSim } from "@/lib/simulation";
 import { getScenarioById } from "@/lib/scenarios";
 import { useConfig } from "@/lib/config";
@@ -83,8 +84,9 @@ export default function SimPage() {
       </header>
 
       <Controls />
+      <UserSayPanel />
 
-      <div className="grid grid-cols-12 gap-3 items-stretch xl:h-[calc(100vh-11rem)] xl:[grid-template-rows:minmax(0,1fr)]">
+      <div className="grid grid-cols-12 gap-3 items-stretch xl:h-[calc(100vh-14rem)] xl:[grid-template-rows:minmax(0,1fr)]">
         <section className="col-span-12 xl:col-span-7 min-h-0">
           <WorldView />
         </section>

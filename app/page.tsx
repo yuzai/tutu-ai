@@ -31,10 +31,29 @@ export default function HomePage() {
         <p className="text-stone-600 max-w-2xl text-sm sm:text-base leading-relaxed">
           多智能体生成式仿真。每个角色由 LLM 按自己的人设、记忆、关系网自主行动 —— 走路、对话、做事、串门。同一套引擎可以跑不同的"场景"。
         </p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <a
+            href="https://github.com"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-md bg-stone-900 text-white hover:bg-stone-700 transition"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.35.95.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.79 0c2.21-1.49 3.18-1.18 3.18-1.18.62 1.58.23 2.75.11 3.04.74.81 1.18 1.84 1.18 3.1 0 4.43-2.7 5.4-5.27 5.69.41.36.78 1.05.78 2.13v3.16c0 .31.21.67.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/>
+            </svg>
+            GitHub
+          </a>
+          <a
+            href="#scenarios"
+            className="inline-flex items-center gap-1.5 text-[13px] px-3 py-1.5 rounded-md bg-tutu-accent text-white hover:brightness-95 transition"
+          >
+            🎮 试玩 →
+          </a>
+        </div>
       </section>
 
       {/* Scenarios */}
-      <section className="space-y-4">
+      <section id="scenarios" className="space-y-4 scroll-mt-4">
         <div className="flex items-baseline justify-between">
           <h2 className="text-lg sm:text-xl font-bold">选个场景，进去逛逛</h2>
           <span className="text-[11px] text-stone-500">{SCENARIO_LIST.length} 个内置</span>

@@ -125,9 +125,9 @@ export function AgentInspector() {
           <div className="text-stone-700 text-[11px] leading-snug">{persona.persona}</div>
         </div>
         <div>
-          <div className="text-stone-500 text-[11px]">记忆（最近 8 条）</div>
+          <div className="text-stone-500 text-[11px]">记忆（最近 16 条）</div>
           <ul className="space-y-0.5 text-[11px] text-stone-700">
-            {agent.memory.slice(-8).map((m, i) => (
+            {agent.memory.slice(-16).map((m, i) => (
               <li key={i}>
                 <span className="text-stone-400 tabular-nums">t={m.tick}</span> {m.text}
               </li>

@@ -19,7 +19,8 @@ export type SimSpeed = 0.25 | 0.5 | 1 | 2 | 4;
 
 const NEAR_RADIUS = 5;
 const SPEECH_TTL_TICKS = 4;
-const MEMORY_CAP = 24;
+const MEMORY_CAP = 60;
+const RECENT_MEMORY_FOR_PROMPT = 16;
 const RE_DECIDE_TICKS = 12;
 function currentMaxConcurrent(): number {
   const v = useConfig.getState().config.maxConcurrent;
@@ -120,6 +121,7 @@ type SimState = {
   selectAgent: (id: string | null) => void;
   tickOnce: () => void;
   applyDecision: (agentId: string, decision: AgentDecision) => void;
+  injectUserSpeech: (text: string, targetId?: string | null) => void;
   markDecisionStart: (agentId: string) => void;
   markDecisionEnd: (agentId: string, error?: string) => void;
   reset: () => void;
@@ -330,6 +332,48 @@ export const useSim = create<SimState>((set, get) => ({
       return { agents, events, pendingHeard };
     }),
 
+  // 路人介入：用户以"路人"身份对场上某人说话（或对所有人）。
+  // 不在地图上，所以不走距离广播；直接 push 到目标 agent 的 pendingHeard 触发其下一轮决策。
+  injectUserSpeech: (text, targetId) =>
+    set((s) => {
+      const trimmed = text.trim();
+      if (!trimmed) return s;
+      const scenario = getScenarioById(s.scenarioId);
+      const agents = { ...s.agents };
+      const events = [...s.events];
+      const pendingHeard = { ...s.pendingHeard };
+      const now = s.tick;
+
+      const targetIds = targetId
+        ? Object.prototype.hasOwnProperty.call(agents, targetId)
+          ? [targetId]
+          : []
+        : Object.keys(agents);
+
+      if (targetIds.length === 0) return s;
+
+      const display = targetId
+        ? `对 ${charById(scenario, targetId)?.name ?? targetId} 说`
+        : "对大家说";
+      pushEvent(events, {
+        tick: now,
+        kind: "say",
+        actor: "🧑‍💼 路人",
+        text: `${display}：「${trimmed}」`,
+      });
+
+      for (const tid of targetIds) {
+        const arr = pendingHeard[tid] ? [...pendingHeard[tid]] : [];
+        arr.push({ from: "路人", text: trimmed });
+        pendingHeard[tid] = arr.slice(-4);
+        const copy = { ...agents[tid] };
+        addMemory(copy, now, `一个路人${display.replace(/^对 .* 说$/, "对我说")}：「${trimmed}」`);
+        agents[tid] = copy;
+      }
+
+      return { agents, events, pendingHeard };
+    }),
+
   diagnoseTick: () => {
     const s = get();
     const scenario = getScenarioById(s.scenarioId);
@@ -412,7 +456,7 @@ export const useSim = create<SimState>((set, get) => ({
         });
       }
     }
-    const recentEvents = a.memory.slice(-8).map((m) => `[t=${m.tick}] ${m.text}`);
+    const recentEvents = a.memory.slice(-RECENT_MEMORY_FOR_PROMPT).map((m) => `[t=${m.tick}] ${m.text}`);
     const pendingSpeechFrom = s.pendingHeard[agentId] || [];
     const relCtx = Object.entries(persona.relationships)
       .map(([k, v]) => `${k}: ${v}`)
