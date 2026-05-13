@@ -7,7 +7,7 @@
 
 一个**轻量级中文友好的多智能体仿真框架**：在 2D 网格小镇上，每个 NPC 由 LLM 按自己的人设、记忆、关系网自主行动 — 走路、对话、做事、串门。
 
-https://github.com/user-attachments/assets/57a6393b-a985-475e-80f6-401dc3ea88c5
+https://github.com/user-attachments/assets/585fbeb9-b906-458a-9cb2-892674c89022
 
 灵感来源于 Stanford [Generative Agents (Smallville)](https://github.com/joonspk-research/generative_agents)，做了中文化和小模型适配。
 
