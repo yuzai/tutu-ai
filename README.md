@@ -7,6 +7,8 @@
 
 一个**轻量级中文友好的多智能体仿真框架**：在 2D 网格小镇上，每个 NPC 由 LLM 按自己的人设、记忆、关系网自主行动 — 走路、对话、做事、串门。
 
+https://github.com/user-attachments/assets/57a6393b-a985-475e-80f6-401dc3ea88c5
+
 灵感来源于 Stanford [Generative Agents (Smallville)](https://github.com/joonspk-research/generative_agents)，做了中文化和小模型适配。
 
 > **形态**：2D 网格 · **技术栈**：Next.js 14 + TypeScript · **模型**：任何 OpenAI 兼容协议（本地 Ollama / LM Studio / vLLM / 远端 OpenAI / DeepSeek / Moonshot…）
